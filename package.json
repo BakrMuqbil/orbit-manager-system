@@ -4,7 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "react-scripts start",
     "server": "node server/index.js",
     "dev": "concurrently \"vite\" \"npm run server\"",
     "build": "vite build",
