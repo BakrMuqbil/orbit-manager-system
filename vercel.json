@@ -5,6 +5,7 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "server/index.js" },
+    { "src": "/assets/(.*)", "dest": "dist/assets/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "outputDirectory": "dist"
