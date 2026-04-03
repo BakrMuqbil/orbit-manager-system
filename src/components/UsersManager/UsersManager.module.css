@@ -31,38 +31,53 @@
   font-weight: 600;
   border: none;
 }
-
+/* 1. تحديث الحاوية لضمان وجود مسافة عمودية بين الكروت */
 .cards-container {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 40px; /* زيادة المسافة بين الكروت إلى 40 بكسل */
   align-items: center;
   width: 100%;
+  padding-bottom: 100px; /* مسافة إضافية في الأسفل لكي لا يغطي الزر العائم آخر كرت */
 }
 
-/* تصميم الكارد الرئيسي */
+/* 2. إضافة هامش (Margin) للكارد لضمان الانفصال */
 .user-main-card {
-  background: #111c44; /* لون الكارد الداكن */
-  width: 100%;
+  background: #111c44; 
+  width: 90%; /* جعل الكارد أصغر قليلاً من عرض الشاشة ليعطي متنفساً */
   max-width: 800px;
-  border-radius: 35px; /* زوايا دائرية كبيرة */
+  border-radius: 35px; 
   padding: 25px;
   position: relative;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3); /* تعميق الظل ليظهر الانفصال بوضوح */
   transition: transform 0.2s;
+  margin-bottom: 10px; /* هامش إضافي احتياطي */
+}
+/* إضافة الحافة العلوية (The Top Notch) */
+.user-main-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%; /* يمكنك التحكم في عرض الحافة من هنا */
+  height: 8px; /* سمك الحافة */
+  background: #000000; /* اللون البنفسجي الفاتح من الصورة */
+  border-radius: 0 0 12px 12px; /* انحناء الحواف السفلية فقط للقطعة */
 }
 
 .user-main-card:hover {
   transform: translateY(-5px);
 }
 
-/* القسم العلوي (أيقونة المستخدم) */
+/* تعديل قسم الأيقونة ليتناسب مع وجود الحافة */
 .avatar-top-section {
   display: flex;
   justify-content: center;
-  margin-top: -15px;
+  margin-top: 10px; /* زيادة الهامش العلوي قليلاً لتبتعد الأيقونة عن الحافة الجديدة */
   margin-bottom: 15px;
 }
+
 
 .user-circle-icon {
   width: 70px;
@@ -183,10 +198,10 @@
 .floating-plus-btn {
   position: fixed;
   bottom: 30px;
-  left: 30px; /* مكان الزر العائم */
+  right: 30px; /* مكان الزر العائم */
   width: 60px;
   height: 60px;
-  background: #4433ff; /* لون بنفسجي مميز */
+  background: #03e9eedb; /* لون بنفسجي مميز */
   color: white;
   border: none;
   border-radius: 50%;

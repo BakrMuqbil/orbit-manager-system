@@ -60,20 +60,39 @@
 .cards-container {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 40px; /* زيادة المسافة بين الكروت إلى 40 بكسل */
   align-items: center;
+  width: 100%;
+  padding-bottom: 100px;
   
 }
 
 /* تصميم الكارد المطابق للصورة */
 .driver-main-card {
-  background: #111c44;
-  width: 100%;
+  background: #111c44; 
+  width: 90%; /* جعل الكارد أصغر قليلاً من عرض الشاشة ليعطي متنفساً */
   max-width: 800px;
-  border-radius: 35px; /* زوايا دائرية كبيرة جداً */
+  border-radius: 35px; 
   padding: 25px;
   position: relative;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3); /* تعميق الظل ليظهر الانفصال بوضوح */
+  transition: transform 0.2s;
+  margin-bottom: 10px;
+}
+.driver-main-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%; /* يمكنك التحكم في عرض الحافة من هنا */
+  height: 8px; /* سمك الحافة */
+  background: #000000; /* اللون البنفسجي الفاتح من الصورة */
+  border-radius: 0 0 12px 12px; /* انحناء الحواف السفلية فقط للقطعة */
+}
+
+.driver-main-card:hover {
+  transform: translateY(-5px);
 }
 
 .avatar-top-section {
@@ -84,9 +103,9 @@
 }
 
 .user-circle-icon {
-  width: 70px;
-  height: 70px;
-  background: #2d3748; /* لون دائرة المستخدم الداكنة */
+  width: 100px;
+  height: 100px;
+  background: transparent; /* لون دائرة المستخدم الداكنة */
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -184,13 +203,13 @@
   left: 1px;
   width: 50px;
   height: 50px;
-  background: rgba(98, 0, 234, 0.4);
+  background: #03e9eedb;
   color: white;
   border: none;
   border-radius: 50%;
   font-size: 35px;
   font-weight: bold;
-  box-shadow: 0 10px 25px rgba(107, 70, 255, 0.4);
+  box-shadow: 0 5px 10px #03e9eedb;
   cursor: pointer;
 }
 

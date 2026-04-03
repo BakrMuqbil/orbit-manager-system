@@ -140,7 +140,7 @@
 }
 
 .confirm-btn {
-  background: #7551ff; /* لون البراند */
+  background: #03e9eedb; /* لون البراند */
   color: white;
   border: none;
   padding: 12px 28px;
@@ -152,7 +152,7 @@
 }
 
 .confirm-btn:hover {
-  background: #5d3dfa;
+  background: #03e9eedb;
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(117, 81, 255, 0.23);
 }

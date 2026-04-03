@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
+import Icon from '@mdi/react';
+import { mdiPencil, mdiDelete, mdiAccountCircle, mdiDomain, mdiKeyVariant } from '@mdi/js';
 import styles from './DriverManager.module.css'; // تغيير الاستيراد إلى موديول
 import UniversalModal from "../UniversalModal"
 import { CloudLoader } from '../../library/items.jsx';
@@ -159,7 +161,9 @@ const handleCloseModal = () => {
           <div key={driver.id} className={styles['driver-main-card']}>
             {/* الدائرة العلوية كما في الصورة */}
             <div className={styles['avatar-top-section']}>
-              <div className={styles['user-circle-icon']}>👤</div>
+              <div className={styles['user-circle-icon']}>
+               <Icon path={mdiAccountCircle} size={3.5} color="#03e9eedb"/>
+              </div>
             </div>
 
             <div className={styles['card-details-body']} onClick={() => navigate(`/ledger/${driver.id}`)}>

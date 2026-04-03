@@ -135,3 +135,22 @@ transition: 0.2s;
 color: white;
 box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
 }
+/* --- Empty Framed Card Specific --- */
+.emptyFramedCard {
+    width: 190px;
+    height: 254px;
+    background: #3405a3; /* لون الخلفية الداكن */
+    border-radius: 15px; /* انحناء الزوايا */
+    box-shadow: 1px 5px 60px 0px rgba(16, 10, 136, 0.42); /* الظل الخارجي */
+    display: flex; /* ليتناسب مع المحتوى المخصص إذا أضيف */
+    flex-direction: column;
+    margin: 10px;
+}
+
+.framedCardBorderTop {
+    width: 60%; /* عرض الحافة العلوية */
+    height: 3%; /* ارتفاع الحافة العلوية */
+    background: #6b64f3; /* لون الحافة العلوية */
+    margin: auto;
+    border-radius: 0px 0px 15px 15px; /* انحناء الحافة العلوية */
+}

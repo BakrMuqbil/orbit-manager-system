@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
 import styles from './Sidebar.module.css'; // استخدام CSS Modules
-import logo from '../../assets/images/Orbit.png'; 
-import profileImg from "../../assets/images/profile-img.jpg";
-
+import logo from '../../assets/images/OrbitMani.png'; 
+import { mdiPencil, mdiDelete, mdiAccountCircle, mdiDomain, mdiKeyVariant } from '@mdi/js';
+import Icon from '@mdi/react';
 const Sidebar = () => {
   const navigate = useNavigate();
   const role = localStorage.getItem('role');
@@ -52,7 +52,8 @@ const Sidebar = () => {
 
       <div className={styles.userSection}>
         <div className={styles.navItem}>
-          <img src={profileImg} alt="Profile" className={styles.profileImg} />
+        
+            <Icon path={mdiAccountCircle} size={4} color="#03e9eedb" />
           <span className={styles.tooltip}>{username}</span>
         </div>
         <button onClick={handleLogout} className={styles.logoutBtn}>

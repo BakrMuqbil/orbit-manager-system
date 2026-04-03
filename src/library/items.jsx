@@ -117,3 +117,14 @@ export const Calendar = () => {
     </div>
   );
 };
+
+// 4. Empty Framed Card (المكون الجديد)
+export const EmptyFramedCard = ({ children }) => {
+  return (
+    <div className={styles.emptyFramedCard}>
+      <div className={styles.framedCardBorderTop}></div>
+      {/* يمكنك وضع محتوى مخصص هنا عبر prop children إذا أردت لاحقاً */}
+      {children}
+    </div>
+  );
+};

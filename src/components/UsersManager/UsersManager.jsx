@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
 import styles from './UsersManager.module.css'; 
 import UniversalModal from "../UniversalModal";
-import { CloudLoader } from '../../library/items.jsx';
+import { CloudLoader, EmptyFramedCard } from '../../library/items.jsx';
 import Icon from '@mdi/react';
 import { mdiPencil, mdiDelete, mdiAccountCircle, mdiDomain, mdiKeyVariant } from '@mdi/js';
 
@@ -110,7 +110,7 @@ const UsersManager = () => {
               <div key={user.id} className={styles['user-main-card']}>
                 <div className={styles['avatar-top-section']}>
                   <div className={styles['user-circle-icon']}>
-                    <Icon path={mdiAccountCircle} size={2} color={user.role === 'super_admin' ? "#4433ff" : "#3182ce"} />
+                    <Icon path={mdiAccountCircle} size={3} color={user.role === 'super_admin' ? "#4433ff" : "#3182ce"} />
                   </div>
                 </div>
 
