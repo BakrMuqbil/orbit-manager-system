@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
 import styles from './Sidebar.module.css'; // استخدام CSS Modules
-import logo from '../../assets/images/logo.png'; 
+import logo from '../../assets/images/Orbit.png'; 
 import profileImg from "../../assets/images/profile-img.jpg";
 
 const Sidebar = () => {
