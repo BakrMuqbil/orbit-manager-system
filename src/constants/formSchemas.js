@@ -61,4 +61,98 @@ quick_repair: [
     { name: 'note', label: 'تفاصيل العطل والإصلاح', type: 'textarea', required: true }
 ],
 
+company: [
+  { name: 'name', label: 'اسم الشركة', type: 'text' },
+  { name: 'owner_name', label: 'اسم المالك', type: 'text' },
+  { 
+    name: 'package_type', 
+    label: 'نوع الباقة', 
+    type: 'select',
+    // يجب أن يكون النوع select
+    options: [
+      { value: 'تجريبية', label: 'شهر تجريبي (مجاني)' },
+      { value: '3 أشهر', label: '3 أشهر (30,000)' },
+      { value: '6 أشهر', label: '6 أشهر (60,000)' },
+      { value: 'سنة', label: 'سنة كاملة (100,000)' }
+    ] 
+  },
+  { name: 'phone', label: 'رقم الجوال', type: 'text' },
+  { name: 'address', label: 'العنوان', type: 'text' },
+  { name: 'code', label: 'كود الشركة', type: 'text' },
+],
+
+users: [
+  { 
+    name: 'username', 
+    label: 'اسم المستخدم', 
+    type: 'text', 
+    required: true 
+  },
+  { 
+    name: 'password', 
+    label: 'كلمة المرور', 
+    type: 'text', // نص صريح كما طلبت
+    required: true 
+  },
+  { 
+    name: 'role', 
+    label: 'رتبة المستخدم', 
+    type: 'select', 
+    required: true,
+    options: [
+      { value: 'super_admin', label: 'مدير نظام (Super Admin)' },
+      { value: 'company_accountant', label: 'محاسب شركة (Accountant)' }
+    ]
+  },
+  { 
+    name: 'company_id', 
+    label: 'الشركة المرتبطة', 
+    type: 'select', 
+    source: 'companiesData', // هذا المصدر سيتم جلب بياناته من API الشركات
+    required: false, // اختياري لأنه سيكون NULL للسوبر أدمن
+    // ملاحظة: سيظهر هذا الحقل في المودال فقط إذا كان الـ role هو محاسب
+    // يمكنك التحكم في ظهوره من خلال الواجهة الأمامية لاحقاً
+  }
+],
+send_announcement: [
+    { 
+      name: 'recipientId', 
+      label: 'المستلم', 
+      type: 'select', 
+      dynamicOptions: 'companiesData', // التأكد من هذا المسمى
+      required: true 
+    },
+    { name: 'message', label: 'نص التنبيه', type: 'textarea', required: true }
+  ],
+
+
+
+
+freeze_company: [
+    { name: 'companyId', label: 'اختر الشركة', type: 'select', dynamicOptions: 'companiesData', required: true },
+    { name: 'reason', label: 'سبب التجميد', type: 'textarea', required: true },
+    { name: 'untilDate', label: 'تجميد حتى تاريخ', type: 'date' },
+  ],
+
+  // 3. مفتاح إدارة الصلاحيات (يجب إضافته)
+  manage_permissions: [
+    { 
+      name: 'userId', 
+      label: 'اختر المستخدم', 
+      type: 'select', 
+      dynamicOptions: 'usersData', // التأكد من هذا المسمى
+      required: true 
+    },
+    { 
+      name: 'role', 
+      label: 'الصلاحية', 
+      type: 'select', 
+      options: [
+        { value: 'admin', label: 'مدير فرع' },
+        { value: 'accountant', label: 'محاسب' }
+      ] 
+    }
+  ],
+
+
 };

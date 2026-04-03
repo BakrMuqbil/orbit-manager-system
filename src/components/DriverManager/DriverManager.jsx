@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
-import styles from './CardSlider.module.css'; // تغيير الاستيراد إلى موديول
+import styles from './DriverManager.module.css'; // تغيير الاستيراد إلى موديول
 import UniversalModal from "../UniversalModal"
-const CardSlider = () => {
+import { CloudLoader } from '../../library/items.jsx';
+const driverManager = () => {
   const navigate = useNavigate();
   const [drivers, setDrivers] = useState([]);
   const [buses, setBuses] = useState([]); 
+  const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriverId, setEditingDriverId] = useState(null);
 
@@ -15,13 +18,12 @@ const CardSlider = () => {
     busNumber: '', startMeter: '', dailyRent: '',
     status: 'نشط', badgeClass: 'badge-active'
   });
-
-  // 1. دالة جلب البيانات (useEffect)
-useEffect(() => {
-  const loadData = async () => {
+const loadData = async () => {
+    setLoading(true); 
     try {
       // جلب السائقين مع بيانات الباص المرتبط (السيرفر الآن يعيد JOIN)
       const driversData = await smartGet('driversData');
+      
 
       // تأكد أن كل سائق مرتبط بالباص الخاص به
       const formattedDrivers = driversData.map(driver => ({
@@ -37,15 +39,20 @@ useEffect(() => {
       const busesData = await smartGet('buses');
       const availableBuses = busesData.filter(bus => bus.status === 'في الخدمة' || !bus.status);
       setBuses(availableBuses);
+      setLoading(false); 
 
     } catch (err) {
       console.error("خطأ في جلب البيانات:", err);
+       
       setDrivers([]);
       setBuses([]);
     }
+    
   };
-
+  // 1. دالة جلب البيانات (useEffect)
+useEffect(() => {
   loadData();
+  
 }, []);
 
 // 2. دالة فتح مودال التعديل
@@ -71,6 +78,7 @@ const handleAddDriver = async (e) => {
   if (!editingDriverId && !selectedBus) {
     return alert("يرجى اختيار باص أولاً");
   }
+  setIsSaving(true)
 
   try {
     // تجهيز الكائن للإرسال بالحقول الصحيحة التي يستقبلها السيرفر
@@ -98,6 +106,9 @@ const handleAddDriver = async (e) => {
     console.error("خطأ في الحفظ:", err);
     alert("فشل الحفظ: " + err.message);
   }
+  finally {
+            setIsSaving(false);
+        }
 };
 
 // 4. دالة الحذف
@@ -135,8 +146,15 @@ const handleCloseModal = () => {
         </div>
         <button className={styles['floating-plus-btn']} onClick={() => setIsModalOpen(true)}>+</button>
       </header>
-      
-      <div className={styles['cards-container']}>
+      <div className={styles.verticalStack}>
+        {loading && (
+        <CloudLoader 
+          message="loading ..."
+          customClass={styles.driverLoader} />
+      )}
+      {!loading && (
+        <div className={styles.dataContent}>
+         <div className={styles['cards-container']}>
         {drivers.map((driver, index) => (
           <div key={driver.id} className={styles['driver-main-card']}>
             {/* الدائرة العلوية كما في الصورة */}
@@ -191,8 +209,9 @@ const handleCloseModal = () => {
           </div>
         ))}
       </div>
-
-      
+        </div>
+      )}
+      </div>
     <UniversalModal 
     isOpen={isModalOpen} 
     onClose={handleCloseModal}
@@ -202,15 +221,8 @@ const handleCloseModal = () => {
     setFormData={setNewDriver}
     dynamicData={{ buses: buses }}
     onSave={handleAddDriver}
-    
-    />
-
-
-
-
-
+    loading={isSaving}/>
     </div>
   );
 };
-
-export default CardSlider;
+export default driverManager;

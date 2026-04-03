@@ -10,7 +10,7 @@
   flex: 1;
   height: calc(100vh - 30px);
   
-  margin-left: 60px; /* نفس عرض السايدبار المنكمش */
+   /* نفس عرض السايدبار المنكمش */
   padding: 5px;
   transition: margin-left 0.4s ease; /* لتناغم الحركة مع السايدبار
   */
@@ -24,8 +24,9 @@
 /* .sidebar:hover + .main-content { margin-left: 260px; } */
 
 .welcome-section h1 {
+  text-align: center;
   font-size: 2rem;
-  color: #161a2d;
+  color: #dfdbcd;
   margin-bottom: 10px;
 }
 
@@ -42,7 +43,7 @@
 
 .stat-card {
   background: white;
-  padding: 20px;
+  padding: 2px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   text-align: center;

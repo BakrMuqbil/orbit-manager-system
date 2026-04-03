@@ -1,101 +1,141 @@
-# 🚌 Orbit Bus Management System
+# 🚍 Orbit Bus Management System  
+### Enterprise Edition 2026
 
-A modern **fleet management system** built with **React.js** and supporting libraries, designed for tracking operations, maintenance, and driver financial records.  
-
-The UI follows the **"Quiet Luxury"** design philosophy — combining elegance with efficiency.
-
----
-
-## 🔐 Demo Access
-
-| Field     | Value  |
-|----------|--------|
-| Username | `orbit` |
-| Password | `123`   |
+![Version](https://img.shields.io/badge/version-2026-blue)
+![Status](https://img.shields.io/badge/status-production-success)
+![License](https://img.shields.io/badge/license-proprietary-red)
 
 ---
 
-## ✨ Core Features
+## ✨ Overview
 
-### 🚧 Smart Maintenance Tracking
-- Differentiates between **Oil Changes** and **General Repairs**
-- Enforces strict validation to eliminate schema mismatches  
+**Orbit** is a next-generation cloud-based platform built to manage large-scale bus fleets with **high precision in financial and operational tracking**.
 
-### 📊 Professional Dashboard
-- Real-time charts and KPIs  
-- Deep-navy theme `#0b1437` for clear financial insights  
+It combines:
+- ⚡ High performance  
+- 🎯 Financial accuracy  
+- 🎨 Quiet Luxury UI philosophy  
 
-### 🧩 Dynamic Modal System
+> Designed with a premium dark theme (`#0b1437`) to reduce eye strain and enhance professional usability.
+
+---
+
+## 🧠 Core Features
+
+### 💎 Super Admin Control Panel
+- Full system control  
+- Centralized monitoring  
+- Company & user management  
+
+### 📊 Live KPIs Dashboard
+- Real-time analytics:
+  - Companies  
+  - Users  
+  - Fleet size  
+
+### 💳 Subscription Management
+- Status tracking:
+  - Active  
+  - Expiring  
+  - Expired  
+
+### ⚡ Quick Actions
+- Instant notifications  
+- Role management  
+- Account suspension  
+
+---
+
+## 🧩 Technical Highlights
+
+### 🧠 Universal Modal Engine
 - Schema-driven forms  
-- Automatically adapts fields based on operation type:
-  - Oil
-  - Repair
-  - Maintenance  
+- Dynamic & error-resistant  
 
-### ⚡ Intelligent Auto-fill
-- Automatically fetches:
-  - Vehicle meter readings  
-  - Bus details  
-- Triggered instantly after selecting a driver  
+### ⚡ Smart Auto-fill
+- Auto-fetch:
+  - Bus data  
+  - Odometer readings  
+- ⬇️ Save up to 70% input time  
 
-### 📜 Audit Trail & History
-- Full chronological transaction ledger  
-- Includes:
-  - Costs  
-  - Meter readings  
-  - Dates  
+### 🔧 Maintenance Tracking
+- Oil changes vs repairs  
+- Image & file support  
 
 ---
 
 ## 🛠 Tech Stack
 
-| Layer      | Technology |
-|-----------|-----------|
-| Frontend  | React.js, React Router, Axios, CSS Modules |
-| Backend   | Node.js, Express.js |
-| Database  | PostgreSQL (via Neon) |
-| Deployment| Vercel + CI/CD |
+| Layer | Technology |
+|------|-----------|
+| Frontend | React.js, React Router |
+| Backend | Node.js, Express.js |
+| Database | PostgreSQL (Neon) |
+| UI | Quiet Luxury Theme |
 
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Getting Started
 
-### 1️⃣ Clone the repository
+### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/orbit-bus-system.git
+git clone https://github.com/your-repo/orbit-bus-system.git
 cd orbit-bus-system
 ```
 
-### 2️⃣ Install dependencies
+### 2. Install dependencies
 ```bash
 npm install
 ```
 
-### 3️⃣ Configure environment variables
-Create a `.env` file in the root directory and add:
-
-```env
-DATABASE_URL=your_postgresql_connection_string
-```
-
-### 4️⃣ Run the application
+### 3. Run package
 ```bash
-npm run dev
+cd orbit-bus-system
+npm run div
 ```
+
+
+---
+
+## ⚙️ Configuration
+
+```js
+export const API_URL = 'http://localhost:3000/api';
+```
+
+---
+
+## 🔐 Access
+
+Login as:
+- Super Admin  
+- Admin  
+- Accountant  
+
+---
+
+## 🏢 Usage
+
+- Add companies  
+- Manage subscriptions  
+- Track fleet operations  
+- Monitor financial data  
+
+---
+
+## 📸 Screenshots (Optional)
+
+> Add system screenshots here for better presentation
 
 ---
 
 ## 👨‍💻 Developer
 
 **Bakr Mohammed**  
-Full-stack Software Developer  
-Specializing in:
-- Enterprise Solutions  
-- React.js Ecosystems  
-- High-end UI/UX Systems  
+Full-stack Developer (Enterprise Systems)
 
 ---
 
 ## 📄 License
 
-© 2026 Orbit System — All Rights Reserved.
+© 2026 Orbit System — All rights reserved

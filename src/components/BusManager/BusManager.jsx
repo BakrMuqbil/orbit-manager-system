@@ -3,29 +3,46 @@ import { smartGet, smartSave, smartDelete } from '../../utils/apiService';
 import { useNavigate } from 'react-router-dom';
 import UniversalModal from '../UniversalModal'; 
 import './BusManager.css';
+import { CloudLoader } from '../../library/items.jsx';
 
 const BusManager = () => {
   const navigate = useNavigate();
     const [buses, setBuses] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [editingBusId, setEditingBusId] = useState(null);
     const [newBus, setNewBus] = useState({ busNumber: '', initialMeter: '', dailyRent: '', status: 'في الخدمة' });
 
     const loadBuses = async () => {
+      setLoading(true); 
         try {
             const data = await smartGet('buses');
             setBuses(data);
-        } catch (err) { console.error("Error:", err); }
+          
+        } catch (err) { console.error("Error:", err); 
+          setLoading(true)
+          }
+          finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { loadBuses(); }, []);
+    useEffect(() => {
+      loadBuses(); 
+      
+    }, []);
 
     const handleSaveBus = async () => {
+      setIsSaving(true)
         try {
             await smartSave('buses', newBus, editingBusId);
             loadBuses();
             handleCloseModal();
         } catch (err) { alert("خطأ في الحفظ"); }
+        finally {
+            setIsSaving(false);
+        }
     };
 
     const handleEditClick = (bus) => {
@@ -65,9 +82,14 @@ const BusManager = () => {
                 </div>
                 <button className="save-btn" onClick={() => setShowModal(true)}>+</button>
             </header>
-
-            <div className="vertical-stack">
-                {buses.map(bus => (
+             <div className="vertical-stack">
+               {loading && (
+            <CloudLoader 
+            message="loading ..."
+            customClass="bus-manager-loader" /> )}
+               {!loading && (
+              <div className="vertical-stack">
+                 {buses.map(bus => (
                     <div key={bus.id} className={`driver-row-card ${bus.status === 'خارج الخدمة' ? 'dimmed' : ''}`}
                     onClick={() => navigate(`/bus-ledger/${bus.id}`)} // الانتقال للسجل
           style={{ cursor: 'pointer' }}
@@ -99,9 +121,11 @@ const BusManager = () => {
                             </button>
                         </div>
                     </div>
+                    
                 ))}
+              </div>
+               )}
             </div>
-
             <UniversalModal 
                 isOpen={showModal} 
                 onClose={handleCloseModal}
@@ -110,6 +134,7 @@ const BusManager = () => {
                 formData={newBus} 
                 setFormData={setNewBus}
                 onSave={handleSaveBus}
+                loading={isSaving}
             />
         </div>
     );

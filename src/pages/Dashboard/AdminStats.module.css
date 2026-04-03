@@ -1,0 +1,151 @@
+.loaderCenter{
+  position: absolute; /* أو absolute */
+  font-size: 24px;
+  color: #f4f7fe;
+  font-weight: 800;
+  top: 40%;       /* تغيير الموقع */
+  left: 50%;
+  transform: translateX( -50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  direction: ltr;
+  width: 100%;
+}
+
+.adminWrapper {
+    padding: 1px;
+    background-color: #0b1437;
+    min-height: 100vh;
+}
+
+/* الهيدر الفاخر */
+.adminHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    background: linear-gradient(90deg, rgba(67, 24, 255, 0.1) 0%, rgba(11, 20, 55, 0) 100%);
+    padding: 30px;
+    border-radius: 20px;
+    border-left: 5px solid #4318ff;
+}
+
+.headerTitle h2 { color: white; margin: 0; font-size: 1.8rem; }
+.headerTitle p { color: #a3aed0; margin: 5px 0 0; font-size: 0.9rem; }
+
+/* شبكة الكروت العلوية */
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.statCard {
+  width: 100%;
+    background: #111c44;
+    padding: 25px;
+    border-radius: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.3s ease;
+}
+
+.statCard:hover { transform: translateY(-5px); }
+.statLabel { color: #a3aed0; font-size: 0.85rem; margin-bottom: 8px; }
+.statValue { color: white; font-size: 1.6rem; font-weight: 800; }
+
+.iconBox {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.neonBlue { background: rgba(67, 24, 255, 0.15); color: #7551ff; box-shadow: 0 0 15px rgba(117, 81, 255, 0.2); }
+.neonPurple { background: rgba(134, 140, 255, 0.15); color: #868cff; }
+.neonCyan { background: rgba(0, 182, 255, 0.15); color: #00b6ff; }
+
+/* قسم الأداء والشركات */
+.performanceSection {
+    
+    
+    gap: 20px;
+        display: flex;
+    flex-direction: column; /* جعل العناصر تحت بعضها في الجوال لتأخذ العرض الكامل */
+    
+    width: 100%;
+}
+
+.mainCard {
+  width: 100%;
+    background: #111c44;
+    border-radius: 25px;
+    padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.cardHeader h3 { color: white; margin: 0; font-size: 1.2rem; }
+
+/* جدول الشركات */
+.adminTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.adminTable th { color: #a3aed0; text-align: right; padding: 12px; font-size: 0.8rem; border-bottom: 1px solid #1b254b; }
+.adminTable td { padding: 15px 12px; color: white; border-bottom: 1px solid #1b254b; font-size: 0.9rem; }
+
+.statusPill {
+    padding: 5px 12px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.active { background: rgba(5, 205, 153, 0.1); color: #05cd99; }
+.expiring { background: rgba(255, 185, 0, 0.1); color: #ffb900; }
+.expired { background: rgba(238, 93, 80, 0.1); color: #ee5d50; }
+
+/* الأكشن السريع */
+.quickActions {
+  width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.actionBtn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: 0.3s;
+    font-weight: 500;
+}
+
+.actionBtn:hover { background: #4318ff; border-color: #4318ff; }
+
+@media (max-width: 992px) {
+    .performanceSection { grid-template-columns: 1fr; }
+}

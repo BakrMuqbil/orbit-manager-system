@@ -11,7 +11,7 @@ const InputField = ({ type, placeholder, icon, onChange }) => {
         type={isPasswordShown ? 'text' : type}
         placeholder={placeholder}
         className="input-field" onChange={onChange}
-        required
+        required={false}
       />
       <i className="material-symbols-rounded">{icon}</i>
       {type === 'password' && (

@@ -5,11 +5,12 @@ import { autoTable } from 'jspdf-autotable';
 import { smartGet, smartSave } from '../../utils/apiService'; 
 import styles from './BusLedger.module.css'; 
 import UniversalModal from '../UniversalModal'; 
+import { CloudLoader } from '../../library/items';
 
 const BusLedger = () => {
   const { busId } = useParams();
   const navigate = useNavigate();
-
+  const [busesList, setBusesList] = useState([]);
   const [bus, setBus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -35,7 +36,7 @@ const BusLedger = () => {
   useEffect(() => {
     fetchBusData();
   }, [busId]);
-
+  
   const fetchBusData = async () => {
     try {
       setLoading(true);
@@ -115,7 +116,6 @@ const BusLedger = () => {
       setLoading(false);
     }
 };
-
 
   const handleSave = async (e) => {
   if (e) e.preventDefault();
@@ -247,7 +247,9 @@ doc.text("Signature: ________________",50, finalY + 70);
   doc.save(`${filterType}_Report_${busName}.pdf`);
 };
 
-  if (loading) return <div className="loader">جاري التحميل...</div>;
+  if (loading) return <div className={`${styles['loader-overlay']} ${loading ? styles.active : ''}`}>
+  <CloudLoader />
+</div>
 
   const totalOil = oilHistory.reduce((sum, item) => sum + item.cost, 0);
   const totalRepair = repairHistory.reduce((sum, item) => sum + item.cost, 0);

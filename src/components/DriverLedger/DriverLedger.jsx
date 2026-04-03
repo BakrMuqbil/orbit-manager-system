@@ -6,6 +6,7 @@ import { autoTable } from 'jspdf-autotable';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
 import './DriverLedger.css';
 import UniversalModal from '../UniversalModal'; 
+import { CloudLoader } from '../../library/items.jsx';
 
 
 const DriverLedger = () => {
@@ -14,7 +15,9 @@ const DriverLedger = () => {
 
   const [driver, setDriver] = useState(null);
   const [ledger, setLedger] = useState([]);
+  
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentEntryId, setCurrentEntryId] = useState(null);
@@ -154,7 +157,7 @@ const [selectedDriver, setSelectedDriver] = useState(null);
   // إضافة سجل جديد
   const handleAddEntry = async (e) => {
     if (e) e.preventDefault();
-
+    setIsSaving(true)
     try {
       const currentBusId = driver?.busId || driver?.bus_id;
       const dataToSave = {
@@ -181,7 +184,9 @@ const [selectedDriver, setSelectedDriver] = useState(null);
     } catch (err) {
       console.error("خطأ في الحفظ:", err);
       alert("حدث خطأ أثناء الحفظ: " + err.message);
-    }
+    }finally {
+            setIsSaving(false);
+        }
   };
 
   const handleEditClick = (entry) => {
@@ -259,9 +264,10 @@ const [selectedDriver, setSelectedDriver] = useState(null);
     doc.save(`Report_${driver.name}.pdf`);
   };
 
-  if (loading) return <div className="loader"> </div>;
-
-  
+  if (loading) return <div className={`loader-overlay ${loading ? 'active' : ''}`}>
+        <CloudLoader />
+      </div>;
+      
     return (
   <div className="ledger-page" dir="rtl">
     <header className="ledger-header-card">
@@ -343,6 +349,7 @@ const [selectedDriver, setSelectedDriver] = useState(null);
       formData={newEntry} 
       setFormData={setNewEntry}
       onSave={handleAddEntry}
+      loading={isSaving}
     />
   </div>
 );

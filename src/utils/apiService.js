@@ -5,15 +5,20 @@ const API_URL = '/api';
 
 /**
  * المحرك الأساسي (Core Request Handler)
- * يتعامل مع كافة طرق الإرسال (GET, POST, PUT, DELETE)
+ * تم تحديثه ليدعم إرسال التوكن تلقائياً ومعالجة انتهاء الجلسة
  */
 export const apiRequest = async (endpoint, method = 'GET', data = null) => {
     try {
+        // جلب التوكن من التخزين المحلي (localStorage)
+        const token = localStorage.getItem('token');
+
         const options = {
             method,
             headers: { 
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                // إضافة التوكن في الهيدر إذا كان موجوداً
+                ...(token && { 'Authorization': `Bearer ${token}` })
             },
         };
         
@@ -23,7 +28,14 @@ export const apiRequest = async (endpoint, method = 'GET', data = null) => {
 
         const response = await fetch(`${API_URL}/${endpoint}`, options);
         
-        // معالجة الأخطاء إذا لم تكن الاستجابة ناجحة (مثل خطأ 500 المزعج)
+        // معالجة خطأ انتهاء صلاحية التوكن أو عدم التصريح (401)
+        if (response.status === 401) {
+            localStorage.clear(); // مسح البيانات المخزنة
+            window.location.href = '/login'; // توجيه المستخدم لصفحة تسجيل الدخول
+            return;
+        }
+
+        // معالجة الأخطاء إذا لم تكن الاستجابة ناجحة
         if (!response.ok) {
             let errorMessage = `Server Error: ${response.status}`;
             try {

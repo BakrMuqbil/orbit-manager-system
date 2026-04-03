@@ -1,0 +1,212 @@
+
+.list-wrapper {
+  padding: 10px;
+  background-color: #0c112e; /* خلفية السايدبار الداكنة */
+  min-height: 100vh;
+  direction: rtl;
+}
+
+.list-header {
+  position: sticky; 
+  top: 0;
+  z-index: 1000; 
+  backdrop-filter: blur(8px); 
+  -webkit-backdrop-filter: blur(8px); 
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  padding: 15px;
+  border-radius: 15px;
+}
+
+.title { color: #f4f7fe; font-size: 24px; font-weight: 800; margin: 0; }
+
+.count {
+  background: transparent;
+  padding: 5px 15px;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #718096;
+  font-weight: 600;
+  border: none;
+}
+
+.cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  align-items: center;
+  width: 100%;
+}
+
+/* تصميم الكارد الرئيسي */
+.user-main-card {
+  background: #111c44; /* لون الكارد الداكن */
+  width: 100%;
+  max-width: 800px;
+  border-radius: 35px; /* زوايا دائرية كبيرة */
+  padding: 25px;
+  position: relative;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.user-main-card:hover {
+  transform: translateY(-5px);
+}
+
+/* القسم العلوي (أيقونة المستخدم) */
+.avatar-top-section {
+  display: flex;
+  justify-content: center;
+  margin-top: -15px;
+  margin-bottom: 15px;
+}
+
+.user-circle-icon {
+  width: 70px;
+  height: 70px;
+  background: #1b254b; /* لون الدائرة خلف الأيقونة */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  border: 4px solid #0c112e; /* فاصل لون الخلفية */
+}
+
+/* بيانات المستخدم */
+.card-details-body {
+  cursor: pointer;
+}
+
+.user-full-name {
+  text-align: right;
+  font-size: 22px;
+  font-weight: 900;
+  color: #f4f7fe; /* لون الاسم فاتح */
+  margin: 0 0 15px 0;
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 10px;
+}
+
+.info-row-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: #a3aed0;
+}
+
+.item-label { color: #718096; font-weight: 500; min-width: 100px; text-align: left;}
+.item-value { color: #d3d3d4; font-weight: 600; }
+
+/* الفاصل المنقط */
+.horizontal-divider {
+  border-top: 1px dashed #2d3748;
+  margin: 20px 0;
+  width: 100%;
+}
+
+/* الرتبة والشركة في الأسفل */
+.footer-company-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #a3aed0;
+  padding: 0 10px;
+}
+
+.company-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #1b254b;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid #2d3748;
+}
+
+.company-code {
+  color: #3182ce; /* لون كود الشركة أزرق */
+  font-weight: 700;
+}
+
+/* أزرار العمليات والحالة */
+.card-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 25px;
+  padding: 0 10px;
+}
+
+.status-pill {
+  padding: 6px 18px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+/* ألوان الرتب (Role Badges) */
+.badge-admin { background: rgba(66, 153, 225, 0.15); color: #63b3ed; border: 1px solid rgba(66, 153, 225, 0.3); }
+.badge-accountant { background: rgba(72, 187, 120, 0.15); color: #68d391; border: 1px solid rgba(72, 187, 120, 0.3); }
+
+.btns-group { display: flex; gap: 15px; }
+
+.action-circle-btn, .action-circle-btn-dele {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px; /* زوايا مربعة قليلاً للأزرار */
+  border: none;
+  background: #1b254b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+  border: 1px solid #2d3748;
+}
+
+.action-circle-btn:hover { background: #2d3748; transform: translateY(-2px); }
+.action-circle-btn-dele:hover { background: #c53030; transform: translateY(-2px); } /* احمر عند الحذف */
+
+/* الزر العائم */
+.floating-plus-btn {
+  position: fixed;
+  bottom: 30px;
+  left: 30px; /* مكان الزر العائم */
+  width: 60px;
+  height: 60px;
+  background: #4433ff; /* لون بنفسجي مميز */
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 30px;
+  font-weight: bold;
+  box-shadow: 0 10px 25px rgba(68, 51, 255, 0.4);
+  cursor: pointer;
+  z-index: 1010;
+  transition: 0.3s;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.floating-plus-btn:hover { background: #3322ee; transform: scale(1.1) rotate(90deg); }
+
+/* الـ Loader */
+.userLoader {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #f4f7fe;
+  z-index: 2000;
+  display: flex; flex-direction: column; align-items: center;
+}
