@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { smartGet, smartSave } from '../../utils/apiService'; 
+import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
 import styles from './BusLedger.module.css'; 
 import UniversalModal from '../UniversalModal'; 
 import { CloudLoader } from '../../library/items';
@@ -21,6 +21,8 @@ const BusLedger = () => {
   const [oilHistory, setOilHistory] = useState([]);
   const [repairHistory, setRepairHistory] = useState([]);
   const [fullHistory, setFullHistory] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+const [currentEntryId, setCurrentEntryId] = useState(null);
 
   const [newEntry, setNewEntry] = useState({
     busId: busId,
@@ -117,7 +119,7 @@ const BusLedger = () => {
     }
 };
 
-  const handleSave = async (e) => {
+  /* const handleSave = async (e) => {
   if (e) e.preventDefault();
   try {
     const isOil = modalType === "quick_oil";
@@ -172,7 +174,90 @@ const BusLedger = () => {
     console.error("❌ فشل الحفظ:", err);
     alert("فشل الحفظ: يرجى إدخال أرقام صحيحة");
   }
+}; */
+const handleSave = async (e) => {
+  if (e) e.preventDefault();
+  try {
+    const isOil = modalType === "quick_oil";
+    const endpoint = isOil ? "oil_changes" : "repairsData";
+
+    // معالجة الأرقام لضمان عدم وجود NaN
+    const fixNum = (val) => {
+      const n = parseInt(val, 10);
+      return isNaN(n) ? 0 : n;
+    };
+
+    const finalCost = fixNum(newEntry.paidAmount || newEntry.cost || 0);
+    const finalMeter = fixNum(newEntry.currentMeter || 0);
+
+    // تجهيز البيانات حسب متطلبات السيرفر لكل نوع
+    const dataToSave = isOil
+      ? {
+          busId: parseInt(busId),
+          date: newEntry.date,
+          currentMeter: finalMeter,
+          paidAmount: finalCost,
+          note: newEntry.note,
+        }
+      : {
+          busId: parseInt(busId),
+          date: newEntry.date,
+          cost: finalCost,
+          currentMeter: finalMeter,
+          note: newEntry.note,
+        };
+
+    // استخدام smartSave: إذا وجد id سيقوم بعمل PUT، وإلا سيعمل POST
+    await smartSave(endpoint, dataToSave, isEditing ? currentEntryId : null);
+    
+    await fetchBusData();
+    handleCloseModal(); // دالة لتنظيف الحالة وإغلاق المودال
+    alert(isEditing ? "تم التعديل بنجاح" : "تم الإضافة بنجاح");
+  } catch (err) {
+    console.error("❌ فشل الحفظ:", err);
+    alert("فشل الحفظ: تأكد من الاتصال بالسيرفر");
+  }
 };
+
+  const handleEditClick = (entry) => {
+  setIsEditing(true);
+  setCurrentEntryId(entry.id);
+  // تحديد نوع المودال بناءً على نوع السجل
+  setModalType(entry.type === 'oil' ? "quick_oil" : "quick_repair");
+  
+  setNewEntry({
+    busId: busId,
+    date: new Date(entry.date).toISOString().split("T")[0],
+    currentMeter: entry.meter,
+    paidAmount: entry.type === 'oil' ? entry.cost : "",
+    cost: entry.type === 'repair' ? entry.cost : "",
+    note: entry.note || ""
+  });
+  setShowModal(true);
+};
+
+
+  const deleteLedger = async (entry) => {
+  const confirmMsg = entry.type === 'oil' 
+    ? "هل أنت متأكد من حذف سجل تغيير الزيت؟ سيؤثر هذا على حساب المسافات." 
+    : "هل أنت متأكد من حذف سجل الصيانة؟";
+
+  if (!window.confirm(confirmMsg)) return;
+
+  try {
+    const endpoint = entry.type === 'oil' ? "oil_changes" : "repairsData";
+    await smartDelete(endpoint, entry.id);
+    
+    // تحديث الواجهة فوراً
+    await fetchBusData();
+    alert("تم الحذف بنجاح");
+  } catch (err) {
+    console.error("❌ فشل الحذف:", err);
+    alert("حدث خطأ أثناء الحذف");
+  }
+};
+
+
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const dateObj = new Date(dateString);
@@ -246,6 +331,28 @@ doc.text("Signature: ________________",50, finalY + 70);
   // 5. حفظ الملف باسم النوع
   doc.save(`${filterType}_Report_${busName}.pdf`);
 };
+const handleCloseModal = () => {
+    // 1. إغلاق المودال برمجياً
+    setShowModal(false);
+
+    // 2. إعادة ضبط حالة التعديل (مهم جداً للتمييز بين POST و PUT في المرة القادمة)
+    if (typeof setIsEditing === 'function') setIsEditing(false);
+    if (typeof setCurrentEntryId === 'function') setCurrentEntryId(null);
+
+    // 3. تصفير الـ State الخاص بالحقول لإرجاع الفورم فارغاً
+    setNewEntry({
+        busId: busId, // نحافظ على ID الباص الحالي لأنه ثابت في هذه الصفحة
+        date: new Date().toISOString().split("T")[0], // تاريخ اليوم كافتراضي
+        currentMeter: "",
+        paidAmount: "",
+        cost: "",
+        note: ""
+    });
+
+    // 4. (اختياري) إذا كنت تريد إعادة نوع المودال للوضع الافتراضي
+    // setModalType("quick_oil"); 
+};
+
 
   if (loading) return <div className={`${styles['loader-overlay']} ${loading ? styles.active : ''}`}>
   <CloudLoader />
@@ -347,7 +454,11 @@ doc.text("Signature: ________________",50, finalY + 70);
   ) : (
     item.type === 'oil' && <span style={{ color: '#666', fontSize: '11px' }}>---</span>
   )}
-</td>
+              </td>
+             <td>
+                <button className="edit-cell" onClick={() => handleEditClick(item)}>✏️</button>&nbsp;&nbsp;
+                <button className="edit-cell" onClick={(e) => { e.stopPropagation(); deleteLedger(item); }}>🗑️</button>
+              </td>
 
 
               </tr>

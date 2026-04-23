@@ -542,6 +542,49 @@ app.post('/api/repairsData', authMiddleware, async (req, res) => {
   }
 });
 
+// تعديل إصلاح موجود
+app.put('/api/repairsData/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { busId, date, note, cost } = req.body;
+  const { company_id, role } = req.user;
+
+  try {
+    // التأكد من أن الإصلاح يخص الشركة أو أن المستخدم سوبر أدمن
+    const checkQuery = role === 'super_admin' 
+      ? 'UPDATE repairs SET "busId"=$1, date=$2, note=$3, cost=$4 WHERE id=$5 RETURNING *'
+      : 'UPDATE repairs SET "busId"=$1, date=$2, note=$3, cost=$4 WHERE id=$5 AND company_id=$6 RETURNING *';
+    
+    const params = role === 'super_admin' ? [busId, date, note, cost, id] : [busId, date, note, cost, id, company_id];
+    
+    const result = await db.query(checkQuery, params);
+
+    if (result.rowCount === 0) return res.status(404).send('الإصلاح غير موجود أو لا تملك صلاحية تعديله');
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send('خطأ في تحديث الإصلاح');
+  }
+});
+
+// حذف إصلاح
+app.delete('/api/repairsData/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { company_id, role } = req.user;
+
+  try {
+    const query = role === 'super_admin'
+      ? 'DELETE FROM repairs WHERE id = $1'
+      : 'DELETE FROM repairs WHERE id = $1 AND company_id = $2';
+    
+    const params = role === 'super_admin' ? [id] : [id, company_id];
+    const result = await db.query(query, params);
+
+    if (result.rowCount === 0) return res.status(404).send('تعذر الحذف: العنصر غير موجود');
+    res.json({ message: 'تم الحذف بنجاح' });
+  } catch (err) {
+    res.status(500).send('خطأ في حذف الإصلاح');
+  }
+});
+
 // ==========================================
 // 🛢️ مسار الزيت (Oil Changes)
 // ==========================================
@@ -578,6 +621,54 @@ app.post('/api/oil_changes', authMiddleware, async (req, res) => {
     res.json({ success: true, data: oilResult.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'فشل في تسجيل تغيير الزيت' });
+  }
+});
+
+// تعديل سجل تغيير زيت
+app.put('/api/oil_changes/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { busId, date, currentMeter, paidAmount, note } = req.body;
+  const { company_id, role } = req.user;
+
+  try {
+    const query = role === 'super_admin'
+      ? 'UPDATE oil_changes SET busid=$1, changedate=$2, totaldistance=$3, amount=$4, note=$5 WHERE id=$6 RETURNING *'
+      : 'UPDATE oil_changes SET busid=$1, changedate=$2, totaldistance=$3, amount=$4, note=$5 WHERE id=$6 AND company_id=$7 RETURNING *';
+
+    const params = role === 'super_admin' 
+      ? [busId, date, currentMeter, paidAmount, note, id] 
+      : [busId, date, currentMeter, paidAmount, note, id, company_id];
+
+    const result = await db.query(query, params);
+
+    if (result.rowCount === 0) return res.status(404).json({ error: 'السجل غير موجود' });
+
+    // تحديث عداد الباص ليتطابق مع التعديل الجديد
+    await db.query('UPDATE buses SET "initialMeter" = $1 WHERE id = $2', [currentMeter, busId]);
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'خطأ في تحديث بيانات الزيت' });
+  }
+});
+
+// حذف سجل تغيير زيت
+app.delete('/api/oil_changes/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { company_id, role } = req.user;
+
+  try {
+    const query = role === 'super_admin'
+      ? 'DELETE FROM oil_changes WHERE id = $1'
+      : 'DELETE FROM oil_changes WHERE id = $1 AND company_id = $2';
+
+    const params = role === 'super_admin' ? [id] : [id, company_id];
+    const result = await db.query(query, params);
+
+    if (result.rowCount === 0) return res.status(404).json({ error: 'تعذر الحذف' });
+    res.json({ success: true, message: 'تم حذف سجل الزيت' });
+  } catch (err) {
+    res.status(500).json({ error: 'خطأ في حذف سجل الزيت' });
   }
 });
 
