@@ -13,7 +13,7 @@ export const globalFormSchema = {
         { name: 'guarantor', label: 'اسم الضمين', type: 'text', required: true },
         { name: 'receiveDate', label: 'تاريخ الاستلام', type: 'date', required: true },
         { name: 'busNumber', label: 'اختر المركبة', type: 'select', source: 'buses' },
-        { name: 'currentMeter', label: 'رقم الميتار', type: 'number', required: true }
+        //{ name: 'currentMeter', label: 'رقم الميتار', type: 'number', required: true }
     ],
 
     // 3. مخطط سجل الحساب (مطابق لـ DriverLedger.jsx)

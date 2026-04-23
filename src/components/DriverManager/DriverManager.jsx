@@ -71,10 +71,13 @@ const handleEditClick = (driver) => {
 // 3. دالة إضافة أو تحديث السائق (المسؤولة عن الـ POST/PUT)
 const handleAddDriver = async (e) => {
   if (e && typeof e.preventDefault === 'function') e.preventDefault();
-
+console.log("New Driver State:", newDriver);
+  console.log("Available Buses:", buses);
   // البحث عن الباص المختار من القائمة (بناءً على busNumber)
-  const selectedBus = buses.find(
-    b => String(b.busNumber) === String(newDriver.busNumber)
+  const selectedBus = buses.find(b => 
+    String(b.id) === String(newDriver.busId) || 
+    String(b.id) === String(newDriver.busNumber) ||
+    String(b.busNumber) === String(newDriver.busNumber)
   );
 
   if (!editingDriverId && !selectedBus) {
