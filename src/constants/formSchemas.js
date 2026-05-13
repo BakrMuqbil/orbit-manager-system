@@ -5,7 +5,6 @@ export const globalFormSchema = {
         { name: 'initialMeter', label: 'عداد الميتار الحالي', type: 'number', required: true },
         { name: 'dailyRent', label: 'قيمة الإيجار اليومي', type: 'number', required: true }
     ],
-
     // 2. مخطط السائقين (مطابق لـ CardSlider.jsx)
     driver: [
         { name: 'name', label: 'اسم السائق', type: 'text', required: true },
@@ -15,7 +14,6 @@ export const globalFormSchema = {
         { name: 'busNumber', label: 'اختر المركبة', type: 'select', source: 'buses' },
         //{ name: 'currentMeter', label: 'رقم الميتار', type: 'number', required: true }
     ],
-
     // 3. مخطط سجل الحساب (مطابق لـ DriverLedger.jsx)
     ledger_entry: [
         { name: 'date', label: 'التاريخ', type: 'date', required: true },
@@ -23,9 +21,28 @@ export const globalFormSchema = {
         { name: 'paidAmount', label: 'المبلغ المدفوع', type: 'number', required: true },
         { name: 'note', label: 'ملاحظات', type: 'text' }
     ],
+    
+    // 1. مخطط الإيجار اليومي (الافتراضي)
+    rent_entry: [
+        { name: 'date', label: 'التاريخ', type: 'date', required: true },
+        { name: 'currentMeter', label: 'رقم الميتار', type: 'number', required: true },
+        { name: 'paidAmount', label: 'المبلغ المدفوع', type: 'number', required: true },
+        { name: 'note', label: 'ملاحظات', type: 'textarea' }
+    ],
 
-    // 4. مخطط العمليات السريعة (الزر الجديد في الداشبورد)
-    // ملف formSchemas.js
+    // 2. مخطط إضافة دين أو سلفة
+    debt_entry: [
+        { name: 'date', label: 'التاريخ', type: 'date', required: true },
+        { name: 'paidAmount', label: 'مبلغ الدين/السلفة', type: 'number', required: true },
+        { name: 'note', label: 'ملاحظات السلفة', type: 'textarea', required: true }
+    ],
+
+    // 3. مخطط سداد مديونية
+    payment_entry: [
+        { name: 'date', label: 'التاريخ', type: 'date', required: true },
+        { name: 'paidAmount', label: 'المبلغ المسدد', type: 'number', required: true },
+        { name: 'note', label: 'ملاحظات السداد', type: 'textarea' }
+    ],
 
     quick_rent: [
         { name: 'driverId', label: 'اسم السائق', type: 'select', source: 'driversData' },
@@ -47,9 +64,8 @@ export const globalFormSchema = {
     { name: 'date', label: 'تاريخ التغيير', type: 'date' },
     { name: 'note', label: 'ملاحظات الصيانة', type: 'textarea' }
 ],
-
     // في ملف formSchemas.js
-quick_repair: [
+    quick_repair: [
     { 
         name: 'busId', 
         label: 'اختر المركبة (الباص)', 
@@ -61,7 +77,7 @@ quick_repair: [
     { name: 'note', label: 'تفاصيل العطل والإصلاح', type: 'textarea', required: true }
 ],
 
-company: [
+    company: [
   { name: 'name', label: 'اسم الشركة', type: 'text' },
   { name: 'owner_name', label: 'اسم المالك', type: 'text' },
   { 
@@ -81,7 +97,7 @@ company: [
   { name: 'code', label: 'كود الشركة', type: 'text' },
 ],
 
-users: [
+    users: [
   { 
     name: 'username', 
     label: 'اسم المستخدم', 
@@ -114,7 +130,8 @@ users: [
     // يمكنك التحكم في ظهوره من خلال الواجهة الأمامية لاحقاً
   }
 ],
-send_announcement: [
+
+    send_announcement: [
     { 
       name: 'recipientId', 
       label: 'المستلم', 
@@ -125,17 +142,13 @@ send_announcement: [
     { name: 'message', label: 'نص التنبيه', type: 'textarea', required: true }
   ],
 
-
-
-
-freeze_company: [
+    freeze_company: [
     { name: 'companyId', label: 'اختر الشركة', type: 'select', dynamicOptions: 'companiesData', required: true },
     { name: 'reason', label: 'سبب التجميد', type: 'textarea', required: true },
     { name: 'untilDate', label: 'تجميد حتى تاريخ', type: 'date' },
   ],
-
   // 3. مفتاح إدارة الصلاحيات (يجب إضافته)
-  manage_permissions: [
+    manage_permissions: [
     { 
       name: 'userId', 
       label: 'اختر المستخدم', 
@@ -153,6 +166,5 @@ freeze_company: [
       ] 
     }
   ],
-
 
 };

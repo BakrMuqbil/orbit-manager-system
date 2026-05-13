@@ -4,9 +4,7 @@ import { mdiCash, mdiOil, mdiWrench, mdiAccountGroup, mdiPlus } from '@mdi/js';
 import { smartSave, smartGet } from '../../utils/apiService';
 import './AccountantStats.css';
 import UniversalModal from '../../components/UniversalModal';
-import { globalFormSchema } from '../../constants/formSchemas';
 import { CloudLoader } from '../../library/items.jsx';
-
 
 const AccountantStats = () => {
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -25,269 +23,305 @@ const AccountantStats = () => {
   });
   const [driversList, setDriversList] = useState([]);
   const [buses, setBuses] = useState([]);
+  const [oilChanges, setOilChanges] = useState([]);
+  const [repairs, setRepairs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [quickTask, setQuickTask] = useState('');
+  const [quickTask, setQuickTask] = useState('quick_rent'); // ✅ قيمة افتراضية
   const [quickFormData, setQuickFormData] = useState({
     date: getTodayDate(),
     driverId: '',
-    driverName:"",
+    driverName: '',
     busNumber: '',
+    busId: '', // ✅ تمت إضافة busId
     currentMeter: '',
     paidAmount: '',
+    cost: '', // ✅ تمت إضافة cost للإصلاحات
     oilInterval: 2000,
-    dailyRent:'',
+    dailyRent: '',
     note: '',
+    type: 'rent',
   });
 
-  
-  const loadAllData = async (isMounted) => {
-  try {
-    setLoading(true);
-    // جلب كل البيانات بطلب واحد متوازي لسرعة الأداء
-    const [drivers, ledger, busesData] = await Promise.all([
-      smartGet('driversData'),
-      smartGet('ledger'),
-      smartGet('buses'),
-    ]);
+  // دالة مساعدة آمنة للتحويل إلى رقم
+  const safeNumber = (val) => {
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+  };
 
-    if (!isMounted) return;
+  const loadAllData = async () => {
+    try {
+      setLoading(true);
+      // جلب كل البيانات المطلوبة بالتوازي
+      const [drivers, ledgerData, busesData, oilData, repairsData] = await Promise.all([
+        smartGet('driversData'),
+        smartGet('ledger'),
+        smartGet('buses'),
+        smartGet('oil_changes'),
+        smartGet('repairsData'),
+      ]);
 
-    // 1. حساب العمليات بناءً على التاريخ المختار (dateFilter)
-    const filteredLedger = ledger.filter(
-      (entry) => entry.date >= dateFilter.from && entry.date <= dateFilter.to
-    );
-    
-    const periodRevenue = filteredLedger.reduce((acc, curr) => acc + Number(curr.paidAmount || 0), 0);
-    
-    // 2. حساب المديونية الكلية للنظام
-    const totalDebt = ledger.reduce(
-      (acc, curr) => acc + (Number(curr.rentAmount || 0) - Number(curr.paidAmount || 0)), 
-      0
-    );
-
-    // 3. معالجة بيانات السائقين وحساب أرصدتهم
-    const processedDrivers = drivers.map((driver) => {
-      const driverEntries = ledger.filter((l) => String(l.driverId) === String(driver.id));
-      const currentBalance = driverEntries.reduce(
-        (acc, curr) => acc + (Number(curr.rentAmount || 0) - Number(curr.paidAmount || 0)), 
-        0
+      // 1. حساب إيرادات الفترة (المقبوضات)
+      const filteredLedger = ledgerData.filter(
+        (entry) => entry.date >= dateFilter.from && entry.date <= dateFilter.to
       );
-      return {
-        ...driver,
-        balance: currentBalance,
-        status: currentBalance <= 0 ? 'محاسب' : 'مديون',
-      };
-    });
+      const periodRevenue = filteredLedger.reduce((acc, curr) => acc + safeNumber(curr.paidAmount), 0);
 
-    // 4. تحديث كل الحالات (States) مرة واحدة
-    setStats({
-      todayRevenue: periodRevenue,
-      oilExpenses: 0,
-      maintenanceExpenses: 0,
-      totalDrivers: drivers.length,
-      totalSystemDebt: totalDebt,
-    });
-    setBuses(busesData);
-    setDriversList(processedDrivers);
-    setLoading(false);
+      // 2. حساب مصاريف الزيت (من oil_changes) حسب الفترة
+      const filteredOil = oilData.filter(
+        (oil) => oil.changedate >= dateFilter.from && oil.changedate <= dateFilter.to
+      );
+      const oilExpensesTotal = filteredOil.reduce((acc, curr) => acc + safeNumber(curr.amount), 0);
 
-  } catch (err) {
-    if (isMounted) {
+      // 3. حساب مصاريف الصيانة (من repairs) حسب الفترة
+      const filteredRepairs = repairsData.filter(
+        (rep) => rep.date >= dateFilter.from && rep.date <= dateFilter.to
+      );
+      const maintenanceExpensesTotal = filteredRepairs.reduce((acc, curr) => acc + safeNumber(curr.cost), 0);
+
+      // 4. حساب المديونية الكلية للنظام بشكل صحيح
+      //    نستخدم dailyRent من الباص المرتبط بالسائق لكل سجل ledger
+      const totalSystemDebt = drivers.reduce((acc, driver) => {
+        const driverEntries = ledgerData.filter((l) => String(l.driverId) === String(driver.id));
+        const bus = busesData.find((b) => b.id === driver.busId);
+        const dailyRent = bus ? safeNumber(bus.dailyRent) : 0;
+        let driverDebt = 0;
+        driverEntries.forEach((entry) => {
+          if (entry.type === 'rent') {
+            driverDebt += dailyRent - safeNumber(entry.paidAmount);
+          } else if (entry.type === 'debt') {
+            driverDebt += safeNumber(entry.paidAmount);
+          } else if (entry.type === 'payment') {
+            driverDebt -= safeNumber(entry.paidAmount);
+          }
+        });
+        return acc + driverDebt;
+      }, 0);
+
+      // 5. معالجة بيانات السائقين مع أرصدتهم الحالية
+      const processedDrivers = drivers.map((driver) => {
+        const driverEntries = ledgerData.filter((l) => String(l.driverId) === String(driver.id));
+        const bus = busesData.find((b) => b.id === driver.busId);
+        const dailyRent = bus ? safeNumber(bus.dailyRent) : 0;
+        let currentBalance = 0;
+        driverEntries.forEach((entry) => {
+          if (entry.type === 'rent') {
+            currentBalance += dailyRent - safeNumber(entry.paidAmount);
+          } else if (entry.type === 'debt') {
+            currentBalance += safeNumber(entry.paidAmount);
+          } else if (entry.type === 'payment') {
+            currentBalance -= safeNumber(entry.paidAmount);
+          }
+        });
+        return {
+          ...driver,
+          balance: currentBalance,
+          status: currentBalance <= 0 ? 'محاسب' : 'مديون',
+        };
+      });
+
+      // تحديث جميع الحالات دفعة واحدة
+      setStats({
+        todayRevenue: periodRevenue,
+        oilExpenses: oilExpensesTotal,
+        maintenanceExpenses: maintenanceExpensesTotal,
+        totalDrivers: drivers.length,
+        totalSystemDebt: totalSystemDebt,
+      });
+      setBuses(busesData);
+      setDriversList(processedDrivers);
+      setOilChanges(oilData);
+      setRepairs(repairsData);
+      setLoading(false);
+    } catch (err) {
       console.error('خطأ في جلب البيانات:', err);
       setLoading(false);
     }
-  }
-};
-
- useEffect(() => {
-  let isMounted = true;
-  loadAllData(isMounted);
-  return () => {
-    isMounted = false; // تنظيف عند الخروج أو تغير الفلتر
   };
-}, [dateFilter]); // سيعمل عند تحميل الصفحة وعند تغيير التاريخ فقط
-useEffect(() => {
-  if (quickFormData.driverId) {
-    const selectedDriver = driversList.find(d => String(d.id) === String(quickFormData.driverId));
-    if (selectedDriver) {
-      setQuickFormData(prev => ({
-        ...prev,
-        busNumber: selectedDriver.busNumber || '',
-        currentMeter: selectedDriver.lastmeter || '',
-        paidAmount: selectedDriver.dailyRent || '',
-        driverName: selectedDriver.name || '',
-      }));
+
+  // تحميل البيانات عند تغيير التاريخ أو تحميل الصفحة
+  useEffect(() => {
+    loadAllData();
+  }, [dateFilter]);
+
+  // تعبئة بيانات السائق تلقائياً عند اختياره
+  useEffect(() => {
+    if (quickFormData.driverId) {
+      const selectedDriver = driversList.find((d) => String(d.id) === String(quickFormData.driverId));
+      if (selectedDriver) {
+        const selectedBus = buses.find((b) => String(b.busNumber) === String(selectedDriver.busNumber));
+        setQuickFormData((prev) => ({
+          ...prev,
+          busNumber: selectedDriver.busNumber || '',
+          busId: selectedBus?.id || '',
+          currentMeter: selectedDriver.lastmeter || selectedDriver.initialMeter || '',
+          paidAmount: selectedDriver.dailyRent || '',
+          driverName: selectedDriver.name || '',
+          dailyRent: selectedDriver.dailyRent || '',
+        }));
+      }
     }
-  }
-}, [quickFormData.driverId, driversList]); // أضفنا driversList لضمان التحديث إذا تغيرت القائمة
+  }, [quickFormData.driverId, driversList, buses]);
 
   const closeQuickModal = () => {
     setShowModal(false);
-    setQuickTask('');
+    setQuickTask('quick_rent'); // إعادة تعيين القيمة الافتراضية
     setQuickFormData({
       date: getTodayDate(),
       driverId: '',
-      busId: '',
       driverName: '',
       busNumber: '',
+      busId: '',
       currentMeter: '',
       paidAmount: '',
+      cost: '',
       oilInterval: 2000,
+      dailyRent: '',
       note: '',
+      type: 'rent',
     });
   };
- 
+
   const handleQuickActionSave = async (e) => {
-  if (e) e.preventDefault();
-  setIsSaving(true)
-  try {
-    const selectedDriver = driversList.find(
-      (d) => String(d.id) === String(quickFormData.driverId)
-    );
-    const selectedBus = buses.find(
-  b => String(b.busNumber) === String(quickFormData.busNumber)
-    );
+    if (e) e.preventDefault();
+    setIsSaving(true);
+    try {
+      const selectedDriver = driversList.find((d) => String(d.id) === String(quickFormData.driverId));
+      const selectedBus = buses.find((b) => String(b.id) === String(quickFormData.busId));
 
-    if (quickTask === "quick_rent") {
-     
-     const rentData = {
-  driverId: quickFormData.driverId,
-  busId: selectedBus ? selectedBus.id : null,  
-  date: quickFormData.date || new Date().toISOString(),
-  currentMeter: Number(quickFormData.currentMeter || 0),
-  paidAmount: Number(quickFormData.paidAmount || 0),
-  type: quickFormData.type || "rent",
-  note: quickFormData.note || ""
-};
-      
-      console.log("🚐 بيانات الإيجار:", rentData);
-      await smartSave("ledger", rentData);
-    // داخل مكون الداشبورد
-    } else if (quickTask === "quick_oil") {
+      if (quickTask === 'quick_rent') {
+        if (!selectedDriver) throw new Error('السائق غير موجود');
+        const rentData = {
+          driverId: quickFormData.driverId,
+          busId: selectedBus?.id || null,
+          date: quickFormData.date || new Date().toISOString(),
+          currentMeter: safeNumber(quickFormData.currentMeter),
+          paidAmount: safeNumber(quickFormData.paidAmount),
+          type: 'rent',
+          note: quickFormData.note || '',
+        };
+        await smartSave('ledger', rentData);
+      } else if (quickTask === 'quick_oil') {
+        if (!selectedBus) throw new Error('المركبة غير موجودة');
         const oilData = {
-    busId: quickFormData.busId, // المعرف الرقمي للباص المختار
-    date: quickFormData.date || new Date().toISOString(),
-    currentMeter: Number(quickFormData.currentMeter),
-    paidAmount: Number(quickFormData.paidAmount || 0),
-    note: quickFormData.note || "تغيير زيت دوري"
+          busId: selectedBus.id,
+          date: quickFormData.date || new Date().toISOString(),
+          currentMeter: safeNumber(quickFormData.currentMeter),
+          paidAmount: safeNumber(quickFormData.paidAmount),
+          note: quickFormData.note || 'تغيير زيت دوري',
+        };
+        await smartSave('oil_changes', oilData);
+      } else if (quickTask === 'quick_repair') {
+        if (!selectedBus) throw new Error('المركبة غير موجودة');
+        const repairData = {
+          busId: selectedBus.id,
+          date: quickFormData.date || new Date().toISOString(),
+          currentMeter: safeNumber(quickFormData.currentMeter), // ✅ تمت إضافة currentMeter
+          cost: safeNumber(quickFormData.cost),
+          note: quickFormData.note || '',
+        };
+        await smartSave('repairsData', repairData);
+      }
+
+      alert('تمت العملية بنجاح');
+      await loadAllData(); // ✅ إعادة التحميل بعد الحفظ
+      closeQuickModal();
+    } catch (err) {
+      console.error('خطأ في الحفظ:', err);
+      alert('فشل في الحفظ، تأكد من البيانات');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-      console.log("🛢️ إرسال سجل زيت للمركبة:", oilData);
-  // إرسال للمسار الذي أنشأناه في index.js
-     await smartSave("oil_changes", oilData); 
-
-} else if (quickTask === "quick_repair") {
-  const repairData = {
-    busId: parseInt(quickFormData.busId), // تحويل المعرف لرقم لضمان التوافق مع قاعدة البيانات
-    date: quickFormData.date || new Date().toISOString(),
-    note: quickFormData.note,
-    cost: Number(quickFormData.cost || 0)
+  // دالة مساعدة لعرض الأرقام مع تجنب NaN
+  const formatStatValue = (value) => {
+    const num = safeNumber(value);
+    return num.toLocaleString();
   };
 
-  console.log("🔧 إرسال سجل إصلاح للمركبة:", repairData);
-  // استدعاء المسار الذي أرسلته أنت في السيرفر
-  await smartSave("repairsData", repairData); 
-}
-
-
-    alert("تمت العملية بنجاح");
-    fetchDashboardData();
-    closeQuickModal();
-  } catch (err) {
-    console.error("خطأ في الحفظ:", err);
-    alert("فشل في الحفظ، تأكد من البيانات");
-  }finally {
-            setIsSaving(false);
-        }
-};
-  if (loading) return <div className={`loader-overlay ${loading ? 'active' : ''}`}>
+  if (loading)
+    return (
+      <div className={`loader-overlay ${loading ? 'active' : ''}`}>
         <CloudLoader />
       </div>
+    );
+
   return (
-    <div className='dashboard-wrapper' dir='rtl'>
-      <header className='horizon-header'>
-        <div className='header-titles'>
-          <h2 className='header-main-title'>لوحة التحكم الرئيسية</h2>
+    <div className="dashboard-wrapper" dir="rtl">
+      <header className="horizon-header">
+        <div className="header-titles">
+          <h2 className="header-main-title">لوحة التحكم الرئيسية</h2>
         </div>
-        <div className='horizon-tools-container'>
-          <div className='horizon-filter-pill'>
-            <div className='date-input-item'>
+        <div className="horizon-tools-container">
+          <div className="horizon-filter-pill">
+            <div className="date-input-item">
               <span>من</span>
               <input
-                type='date'
+                type="date"
                 value={dateFilter.from}
-                onChange={(e) =>
-                  setDateFilter({ ...dateFilter, from: e.target.value })
-                }
+                onChange={(e) => setDateFilter({ ...dateFilter, from: e.target.value })}
               />
             </div>
-            <div className='date-input-item'>
+            <div className="date-input-item">
               <span>إلى</span>
               <input
-                type='date'
+                type="date"
                 value={dateFilter.to}
-                onChange={(e) =>
-                  setDateFilter({ ...dateFilter, to: e.target.value })
-                }
+                onChange={(e) => setDateFilter({ ...dateFilter, to: e.target.value })}
               />
             </div>
           </div>
-          <button
-            className='horizon-circle-add'
-            onClick={() => setShowModal(true)}>
+          <button className="horizon-circle-add" onClick={() => setShowModal(true)}>
             <Icon path={mdiPlus} size={1} />
           </button>
-          <button onClick={loadAllData} className='refresh-icon-btn'>
+          <button onClick={() => loadAllData()} className="refresh-icon-btn">
             🔄
           </button>
         </div>
       </header>
 
-      <div className='stats-grid'>
+      <div className="stats-grid">
         <StatCard
           title={dateFilter.from === dateFilter.to ? 'دخل اليوم' : 'دخل الفترة'}
-          value={stats.todayRevenue}
-          color='success'
+          value={formatStatValue(stats.todayRevenue)}
+          color="success"
           iconPath={mdiCash}
         />
         <StatCard
-          title='خرج الزيت'
-          value={stats.oilExpenses}
-          color='info'
+          title="خرج الزيت"
+          value={formatStatValue(stats.oilExpenses)}
+          color="info"
           iconPath={mdiOil}
         />
         <StatCard
-          title='خرج الإصلاحات'
-          value={stats.maintenanceExpenses}
-          color='warning'
+          title="خرج الإصلاحات"
+          value={formatStatValue(stats.maintenanceExpenses)}
+          color="warning"
           iconPath={mdiWrench}
         />
         <StatCard
-          title='إجمالي السائقين'
-          value={stats.totalDrivers}
-          color='primary'
+          title="إجمالي السائقين"
+          value={formatStatValue(stats.totalDrivers)}
+          color="primary"
           iconPath={mdiAccountGroup}
         />
       </div>
 
-      <div className='overview-section'>
-        <div className='overview-card'>
-          <div className='overview-content'>
+      <div className="overview-section">
+        <div className="overview-card">
+          <div className="overview-content">
             <h3>إجمالي مديونية النظام المستحقة</h3>
-            <h1
-              className={
-                stats.totalSystemDebt > 0 ? 'text-danger' : 'text-success'
-              }>
-              {stats.totalSystemDebt.toLocaleString()} <small>ريال</small>
+            <h1 className={stats.totalSystemDebt > 0 ? 'text-danger' : 'text-success'}>
+              {formatStatValue(stats.totalSystemDebt)} <small>ريال</small>
             </h1>
           </div>
         </div>
       </div>
 
-      <div className='table-container'>
-        <table className='dashboard-table'>
+      <div className="table-container">
+        <table className="dashboard-table">
           <thead>
             <tr>
               <th>السائق</th>
@@ -303,10 +337,9 @@ useEffect(() => {
                   <strong>{driver.name}</strong>
                 </td>
                 <td>#{driver.busNumber}</td>
-                <td>{driver.balance.toLocaleString()} ريال</td>
+                <td>{formatStatValue(driver.balance)} ريال</td>
                 <td>
-                  <span
-                    className={`pill ${driver.balance <= 0 ? 'paid' : 'debt'}`}>
+                  <span className={`pill ${driver.balance <= 0 ? 'paid' : 'debt'}`}>
                     {driver.status}
                   </span>
                 </td>
@@ -316,36 +349,38 @@ useEffect(() => {
         </table>
       </div>
 
-      {/* المودال الموحد مع القائمة المنسدلة في الأعلى */}
- {showModal && (
-  <UniversalModal
-  isOpen={showModal}
-  onClose={closeQuickModal}
-  schemaKey={quickTask}
-  title='مركز العمليات السريعة'
-  formData={quickFormData}
-  setFormData={setQuickFormData}
-  onSave={handleQuickActionSave}
-  loading={isSaving}
-	dynamicData={{
-    driversData: driversList, // هذا سيملاً قائمة السائقين
-    busesData: buses,       // سنستخدم نفس القائمة لجلب أرقام الباصات
-    
-  }}>
+      {/* المودال الموحد */}
+      {showModal && (
+        <UniversalModal
+          isOpen={showModal}
+          onClose={closeQuickModal}
+          schemaKey={quickTask}
+          title="مركز العمليات السريعة"
+          formData={quickFormData}
+          setFormData={setQuickFormData}
+          onSave={handleQuickActionSave}
+          loading={isSaving}
+          dynamicData={{
+            driversData: driversList,
+            busesData: buses,
+          }}
+        >
           <div
-            className='form-group'
+            className="form-group"
             style={{
               marginBottom: '20px',
               borderColor: '#7551ff',
               paddingBottom: '15px',
-            }}>
+            }}
+          >
             <label
               style={{
                 color: '#a3adc2',
                 display: 'block',
                 marginBottom: '8px',
                 fontWeight: 'bold',
-              }}>
+              }}
+            >
               نوع العملية
             </label>
             <select
@@ -353,27 +388,22 @@ useEffect(() => {
               onChange={(e) => setQuickTask(e.target.value)}
               style={{
                 width: '100%',
-  background: '#1b254b', /* لون المدخلات في Horizon UI */
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  borderRadius: '14px',
-  padding: '12px 16px',
-  color: '#ffffff',
-  fontSize: '0.95rem',
-  transition: 'all 0.3s',
-  boxSizing: 'borderBox',
-  borderColor: '#7551ff',
-              }}>
-              <option value=''>-- اختر العملية --</option>
-              <option value='quick_rent'>💰 قبض إيجار يومي</option>
-              <option value='quick_oil'>🛢️ تغيير زيت / ميتار</option>
-              <option value='quick_repair'>🛠️ تسجيل إصلاحات</option>
+                background: '#1b254b',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '14px',
+                padding: '12px 16px',
+                color: '#ffffff',
+                fontSize: '0.95rem',
+                transition: 'all 0.3s',
+                boxSizing: 'borderBox',
+                borderColor: '#7551ff',
+              }}
+            >
+              <option value="quick_rent">💰 قبض إيجار يومي</option>
+              <option value="quick_oil">🛢️ تغيير زيت / ميتار</option>
+              <option value="quick_repair">🛠️ تسجيل إصلاحات</option>
             </select>
           </div>
-          {!quickTask && (
-            <p style={{ textAlign: 'center', color: '#666' }}>
-              يرجى تحديد نوع العملية للمتابعة
-            </p>
-          )}
         </UniversalModal>
       )}
     </div>
@@ -382,9 +412,9 @@ useEffect(() => {
 
 const StatCard = ({ title, value, color, iconPath }) => (
   <div className={`card-stat border-${color}`}>
-    <div className='card-info'>
-      <p className='card-label'>{title}</p>
-      <h2 className='card-value'>{value.toLocaleString()}</h2>
+    <div className="card-info">
+      <p className="card-label">{title}</p>
+      <h2 className="card-value">{value}</h2>
     </div>
     <div className={`card-icon ${color}`}>
       <Icon path={iconPath} size={1.2} />
