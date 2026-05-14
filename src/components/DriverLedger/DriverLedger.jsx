@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-// استيراد الدوال الذكية الجديدة
-import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
+import { smartGet, smartSave, smartDelete } from '../../utils/apiService';
 import './DriverLedger.css';
-import UniversalModal from '../UniversalModal'; 
+import UniversalModal from '../UniversalModal';
 import { CloudLoader } from '../../library/items.jsx';
 
 const DriverLedger = () => {
@@ -14,7 +13,8 @@ const DriverLedger = () => {
   const [activeSchema, setActiveSchema] = useState("ledger_entry");
   const [driver, setDriver] = useState(null);
   const [ledger, setLedger] = useState([]);
-  
+  const [activeTab, setActiveTab] = useState("all"); // all, rent, debt_payment
+
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -41,10 +41,9 @@ const DriverLedger = () => {
   useEffect(() => {
     fetchData();
   }, [driverId]);
-  
+
   useEffect(() => {
     if (isNewLedgerEntry && selectedDriver) {
-      console.log("Auto-fill سجل جديد للسائق:", selectedDriver);
       setNewEntry(prev => ({
         ...prev,
         driverId: selectedDriver.driver_id,
@@ -60,26 +59,19 @@ const DriverLedger = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-
-      // 1. جلب بيانات السائقين للحصول على الرصيد الافتتاحي والقيمة اليومية للإيجار
       const drivers = await smartGet("driversData");
       const currentDriver = drivers.find(
         (d) => d.id.toString() === driverId.toString()
       );
-      
       if (!currentDriver) {
-          console.warn("لم يتم العثور على بيانات السائق");
-          setLoading(false);
-          return;
+        console.warn("لم يتم العثور على بيانات السائق");
+        setLoading(false);
+        return;
       }
-
       setDriver(currentDriver);
       setSelectedDriver(currentDriver);
 
-      // 2. جلب سجل الحركات (Ledger) الخاص بهذا السائق
       const ledgerData = await smartGet("ledger", `driverId=${driverId}`);
-
-      // الترتيب حسب التاريخ لضمان تسلسل العمليات بشكل منطقي
       const sortedLedger = [...ledgerData].sort((a, b) => {
         const dateA = new Date(a.date).getTime() || 0;
         const dateB = new Date(b.date).getTime() || 0;
@@ -87,27 +79,21 @@ const DriverLedger = () => {
       });
 
       let previousMeter = Number(currentDriver?.initialMeter || 0);
-      
-      // تبدأ الحسبة من الرصيد الافتتاحي (صندوق الديون القديمة)
       let runningBalance = Number(currentDriver?.opening_balance || 0);
 
       const processedData = sortedLedger.map((entry) => {
         const currentMeter = Number(entry.currentMeter || 0);
         const paidAmount = Number(entry.paidAmount || 0);
-        
-        // تحديد قيمة الإيجار بناءً على نوع العملية
-        const rentAmount = (entry.type === 'debt' || entry.type === 'payment') 
-          ? 0 
+        const rentAmount = (entry.type === 'debt' || entry.type === 'payment')
+          ? 0
           : Number(currentDriver?.dailyRent || 0);
 
-        // حساب المسافة فقط لعمليات الإيجار (rent)
         let distance = 0;
         if (entry.type !== 'debt' && entry.type !== 'payment') {
           distance = currentMeter > previousMeter ? currentMeter - previousMeter : 0;
           previousMeter = currentMeter;
         }
 
-        // تحديث الصندوق التراكمي بناءً على النوع
         if (entry.type === 'debt') {
           runningBalance += paidAmount;
         } else if (entry.type === 'payment') {
@@ -116,7 +102,7 @@ const DriverLedger = () => {
           runningBalance += (rentAmount - paidAmount);
         }
 
-        const currentData = {
+        return {
           ...entry,
           currentMeter,
           initialMeter: Number(currentDriver?.initialMeter || 0),
@@ -125,11 +111,8 @@ const DriverLedger = () => {
           distance,
           cumulativeBalance: runningBalance
         };
-
-        return currentData;
       });
 
-      // عكس المصفوفة ليكون التاريخ الأحدث في أعلى الجدول عند العرض
       setLedger(processedData.reverse());
       setLoading(false);
     } catch (err) {
@@ -137,22 +120,44 @@ const DriverLedger = () => {
       setLoading(false);
     }
   };
+  
+  // حساب إجمالي المدفوع للإيجار
+const totalRentPaid = ledger
+  .filter(entry => entry.type === 'rent')
+  .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
 
   // حساب المسافة المجمعة للزيت
   useEffect(() => {
     if (ledger.length > 0) {
-      let totalDistance = ledger.reduce((sum, entry) => {
-        const distance = Number(entry.distance || 0);
-        return sum + distance;
-      }, 0);
+      let totalDistance = ledger.reduce((sum, entry) => sum + Number(entry.distance || 0), 0);
       setOilCounterVal(totalDistance);
     }
   }, [ledger]);
 
-  // تحديد اللون لعرض المسافة
   const oilColorClass = oilCounterVal <= oilInterval ? "text-success" : "text-danger";
 
-  // إضافة سجل جديد
+  // دالة الفلترة حسب التبويب النشط
+  const getFilteredLedger = () => {
+    if (activeTab === "all") return ledger;
+    if (activeTab === "rent") return ledger.filter(entry => entry.type === "rent");
+    if (activeTab === "debt_payment") return ledger.filter(entry => entry.type === "debt" || entry.type === "payment");
+    return ledger;
+  };
+
+  // دالة مساعدة للحصول على الأيقونة والنص المعروض لنوع العملية
+  const getTransactionDetails = (type) => {
+    switch (type) {
+      case 'rent':
+        return { icon: '', label: 'إيجار', badgeClass: 'type-rent' };
+      case 'debt':
+        return { icon: '', label: 'دين', badgeClass: 'type-debt' };
+      case 'payment':
+        return { icon: '', label: 'سداد ', badgeClass: 'type-payment' };
+      default:
+        return { icon: '', label: type, badgeClass: '' };
+    }
+  };
+
   const handleAddEntry = async (e) => {
     if (e) e.preventDefault();
     setIsSaving(true);
@@ -160,7 +165,6 @@ const DriverLedger = () => {
       const currentBusId = driver?.busId || driver?.bus_id;
       const entryType = newEntry.type || "rent";
       let amount = Number(newEntry.paidAmount || 0);
-
       const dataToSave = {
         driverId: driverId,
         busId: currentBusId,
@@ -172,13 +176,11 @@ const DriverLedger = () => {
         type: entryType,
         note: newEntry.note || ""
       };
-
       await smartSave("ledger", dataToSave, isEditing ? currentEntryId : null);
       await fetchData();
       handleCloseModal();
-
-      const successMsg = entryType === 'debt' ? "تم تسجيل الدين بنجاح" : 
-                         entryType === 'payment' ? "تم تسجيل السداد بنجاح" : "تم تسجيل العملية بنجاح";
+      const successMsg = entryType === 'debt' ? "تم تسجيل الدين بنجاح" :
+        entryType === 'payment' ? "تم تسجيل السداد بنجاح" : "تم تسجيل العملية بنجاح";
       alert(successMsg);
     } catch (err) {
       console.error("Error saving entry:", err);
@@ -191,19 +193,14 @@ const DriverLedger = () => {
   const handleEditClick = (entry) => {
     setIsEditing(true);
     setCurrentEntryId(entry.id);
-    // تعيين نوع المودال بناءً على نوع السجل
-    if (entry.type === 'debt') {
-      setActiveSchema('debt_entry');
-    } else if (entry.type === 'payment') {
-      setActiveSchema('payment_entry');
-    } else {
-      setActiveSchema('ledger_entry');
-    }
+    if (entry.type === 'debt') setActiveSchema('debt_entry');
+    else if (entry.type === 'payment') setActiveSchema('payment_entry');
+    else setActiveSchema('ledger_entry');
     setNewEntry({
       date: entry.date,
       currentMeter: Number(entry.currentMeter),
       paidAmount: Number(entry.paidAmount),
-      type: entry.type,      // حفظ النوع الأصلي
+      type: entry.type,
       note: entry.note || ""
     });
     setShowModal(true);
@@ -226,7 +223,7 @@ const DriverLedger = () => {
     if (!window.confirm("هل أنت متأكد من حذف هذا السجل؟")) return;
     try {
       await smartDelete("ledger", id);
-      await fetchData();  // إعادة جلب البيانات لحساب الأرصدة من جديد
+      await fetchData();
       alert("تم حذف السجل بنجاح");
     } catch (err) {
       console.error("فشل الحذف:", err);
@@ -247,20 +244,20 @@ const DriverLedger = () => {
       return;
     }
     const doc = new jsPDF("p", "pt", "a4");
-    doc.text(`Driver Report: ${driver.name}`, 40, 50);
+    doc.text(`تقرير حساب السائق: ${driver.name}`, 40, 50);
     autoTable(doc, {
-      startY: 120,
-      head: [["Date", "Meter", "Dist", "Rent", "Paid", "Balance"]],
+      startY: 80,
+      head: [["التاريخ", "العداد", "المسافة", "الإيجار", "المدفوع", "الرصيد التراكمي"]],
       body: ledger.map((item) => [
-        item.date,
+        formatDate(item.date),
         item.currentMeter,
-        `${item.distance} KM`,
-        item.dailyRent,
-        item.paidAmount,
-        item.cumulativeBalance
+        `${item.distance} كم`,
+        Number(item.dailyRent || 0).toLocaleString(),
+        Number(item.paidAmount || 0).toLocaleString(),
+        Number(item.cumulativeBalance || 0).toLocaleString()
       ])
     });
-    doc.save(`Report_${driver.name}.pdf`);
+    doc.save(`Driver_${driver.name}.pdf`);
   };
 
   if (loading) return (
@@ -270,112 +267,154 @@ const DriverLedger = () => {
   );
 
   return (
-    <div className="ledger-page" dir="rtl">
+    <div className="ledger-page" >
+    
       <header className="ledger-header-card">
-        <div className="right-side">
+      
+        <div className="header-left">
           <button className="back-link" onClick={() => navigate('/home/drivers')}>← العودة</button>
+        </div>
+        
+        <div className="header-center">
           <h1>سجل الحساب اليومي</h1>
-          <h3>{driver.name} | مركبة #{driver.busNumber}</h3>
         </div>
-        <div className="left-side">
-          <button className="export-btn" onClick={exportPDF}>📤 تصدير PDF</button>
+        
+        <div className="header-right">
+        <ul>
+        <li> الاسم : {driver.name}
+        </li>
+        <li> رقم الباص : {driver.busNumber}
+        </li>
+        <li> رقم الهاتف : {driver.phone}
+        </li>
+        </ul>
           
-          <button className="debt-btn"
-            onClick={() => {
-              setActiveSchema("debt_entry");
-              setNewEntry({ ...newEntry, type: 'debt', paidAmount: '' });
-              setShowModal(true);
-            }}>+ إضافة دين</button>
-
-          <button className="payment-btn" onClick={() => {
-              setActiveSchema("payment_entry");
-              setNewEntry({ ...newEntry, type: 'payment', paidAmount: '' });
-              setShowModal(true);
-            }}>+ سداد مديونية</button>
-           
-          <button className="add-entry-btn" onClick={() => {
-              setActiveSchema("ledger_entry");
-              setIsNewLedgerEntry(true);
-              setShowModal(true);
-            }}>+ إيجار يومي</button>
         </div>
+        
       </header>
 
+      {/* قسم الإحصائيات */}
       <div className="summary-section">
-        <div className="stat-box">
+      
+        <div className="stat-box" onClick={() => setActiveTab('debt_payment')} style={{ cursor: 'pointer', border: activeTab === 'debt_payment' ? '1px solid #4318ff' : '' }}>
           <span>المديونية الكلية</span>
           <h2 className="text-danger">
             {Number(ledger[0]?.cumulativeBalance || driver?.opening_balance || 0).toLocaleString()} ريال
           </h2>
         </div>
-        <div className="stat-box">
+        <div className="stat-box" onClick={() => setActiveTab('rent')} style={{ cursor: 'pointer', border: activeTab === 'rent' ? '1px solid #00b8d8' : '' }}>
+  <span>إجمالي المدفوع للإيجار</span>
+  <h2 className="text-success">
+    {totalRentPaid.toLocaleString()} ريال
+  </h2>
+</div>
+        <div className="stat-box" >
           <span>آخر ميتار</span>
           <h2>{ledger[0]?.currentMeter || driver.initialMeter}</h2>
         </div>
+        
         <div className="stat-box">
-          <span>المسافه المقطوعة</span>
+          <span>المسافة المقطوعة</span>
           <h2 className={oilColorClass}>
-            {oilCounterVal <= oilInterval
-              ? `${oilCounterVal} كم`
-              : `تجاوز ${oilCounterVal - oilInterval} كم`}
+            {oilCounterVal <= oilInterval ? `${oilCounterVal} كم` : `تجاوز ${oilCounterVal - oilInterval} كم`}
           </h2>
         </div>
+       
+        
       </div>
 
+      {/* أزرار التبويبات */}
+      <div className="tabs-container" >
+      <div className="tabs-section" >
+        <button className={activeTab === 'all' ? 'active-tab' : ''} onClick={() => setActiveTab('all')}>
+           الكل
+        </button>
+        <button className={activeTab === 'rent' ? 'active-tab' : ''} onClick={() => setActiveTab('rent')}>
+           الإيجار
+        </button>
+        <button className={activeTab === 'debt_payment' ? 'active-tab' : ''} onClick={() => setActiveTab('debt_payment')}>
+          ديون وسداد
+        </button>
+        </div>
+        <div className="actions-bar">
+        <button className="export-btn" onClick={exportPDF}>📤 تصدير PDF</button>
+         <button className="action-btn add-debt" onClick={() => {
+          setActiveSchema("debt_entry");
+          setNewEntry({ ...newEntry, type: 'debt', paidAmount: '' });
+          setShowModal(true);
+        }}> إضافة دين</button>
+         <button className="action-btn add-payment" onClick={() => {
+          setActiveSchema("payment_entry");
+          setNewEntry({ ...newEntry, type: 'payment', paidAmount: '' });
+          setShowModal(true);
+        }}> سداد مديونية</button>
+         <button className="action-btn add-rent" onClick={() => {
+          setActiveSchema("ledger_entry");
+          setIsNewLedgerEntry(true);
+          setShowModal(true);
+        }}> إيجار يومي</button>
+      </div>
+        
+      </div>
+
+      {/* الجدول */}
       <div className="table-wrapper">
         <table className="ledger-table">
           <thead>
             <tr>
               <th>التاريخ</th>
+              <th>النوع</th>
+              <th>البيان / الملاحظة</th>
               <th>الميتار</th>
-              <th>المسافة</th>
+              <th>المسافة (كم)</th>
               <th>الإيجار</th>
               <th>المدفوع</th>
-              <th>صافي اليوم</th>  {/* تم تغيير العنوان */}
+              <th>صافي اليوم</th>
               <th>إجراء</th>
             </tr>
           </thead>
           <tbody>
-            {ledger.map((entry) => (
-              <tr key={entry.id}>
-                <td>{formatDate(entry.date)}</td>
-                <td>{entry.currentMeter}</td>
-                <td className={entry.distance > 200 ? "balance-debt" : "balance-ok"}>
-                  {entry.distance} كم
-                </td>
-                <td>{Number(entry.dailyRent || 0).toLocaleString()} ريال</td>
-                <td className="paid-val">{Number(entry.paidAmount || 0).toLocaleString()} ريال</td>
-                <td className={(Number(entry.dailyRent) - Number(entry.paidAmount)) > 0 ? "balance-debt" : "balance-ok"}>
-                  {Number(entry.dailyRent) - Number(entry.paidAmount)} ريال
-                </td>
-                <td>
-                  <button 
-                    className="edit-cell" 
-                    onClick={() => handleEditClick(entry)}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', margin: '0 4px', color: '#4f46e5' }}
-                  >✏️</button>
-                  <button 
-                    className="edit-cell" 
-                    onClick={(e) => { e.stopPropagation(); deleteLedger(entry.id); }}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', margin: '0 4px', color: '#ef4444' }}
-                  >🗑️</button>
-                </td>
-              </tr>
-            ))}
+            {getFilteredLedger().map((entry) => {
+              const { icon, label, badgeClass } = getTransactionDetails(entry.type);
+              const netDay = Number(entry.dailyRent || 0) - Number(entry.paidAmount || 0);
+              return (
+                <tr key={entry.id}>
+                  <td>{formatDate(entry.date)}</td>
+                  <td>
+                    <span className={`transaction-badge ${badgeClass}`}>
+                      {icon} {label}
+                    </span>
+                  </td>
+                  <td>{entry.note || '---'}</td>
+                  <td>{entry.currentMeter}</td>
+                  <td className={entry.distance > 200 ? "balance-debt" : "balance-ok"}>{entry.distance} كم</td>
+                  <td>{Number(entry.dailyRent || 0).toLocaleString()} ريال</td>
+                  <td className="paid-val">{Number(entry.paidAmount || 0).toLocaleString()} ريال</td>
+                  <td className={netDay > 0 ? "balance-debt" : "balance-ok"}>{netDay.toLocaleString()} ريال</td>
+                  <td>
+                    <button className="edit-cell" onClick={() => handleEditClick(entry)}>✏️</button>
+                    <button className="delete-cell" onClick={(e) => { e.stopPropagation(); deleteLedger(entry.id); }}>🗑️</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {getFilteredLedger().length === 0 && (
+              <tr><td colSpan="9" style={{ textAlign: 'center', padding: '30px' }}>لا توجد سجلات في هذا القسم</td></tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      <UniversalModal 
-        isOpen={showModal} 
+      <UniversalModal
+        isOpen={showModal}
         onClose={handleCloseModal}
         schemaKey={activeSchema}
         title={
-          activeSchema === "debt_entry" ? "➕ إضافة دين/سلفة" : 
-          activeSchema === "payment_entry" ? "➕ سداد مديونية" : 
-          isEditing ? "📝 تعديل سجل" : "➕ إضافة سجل إيجار"
+          activeSchema === "debt_entry" ? "➕ إضافة دين/سلفة" :
+            activeSchema === "payment_entry" ? "➕ سداد مديونية" :
+              isEditing ? "📝 تعديل سجل" : "➕ إضافة سجل إيجار"
         }
-        formData={newEntry} 
+        formData={newEntry}
         setFormData={setNewEntry}
         onSave={handleAddEntry}
         loading={isSaving}

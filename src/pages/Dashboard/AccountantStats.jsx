@@ -10,10 +10,11 @@ const AccountantStats = () => {
   const getTodayDate = () => new Date().toISOString().split('T')[0];
 
   // الحالات (States)
-  const [dateFilter, setDateFilter] = useState({
-    from: getTodayDate(),
-    to: getTodayDate(),
-  });
+  const currentYear = new Date().getFullYear();
+  const [filterYear, setFilterYear] = useState(currentYear);
+  const [filterMonth, setFilterMonth] = useState(0); // 0 = السنة بأكملها
+  const [availableYears, setAvailableYears] = useState([currentYear]);
+  
   const [stats, setStats] = useState({
     todayRevenue: 0,
     oilExpenses: 0,
@@ -28,16 +29,16 @@ const AccountantStats = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [quickTask, setQuickTask] = useState('quick_rent'); // ✅ قيمة افتراضية
+  const [quickTask, setQuickTask] = useState('quick_rent');
   const [quickFormData, setQuickFormData] = useState({
     date: getTodayDate(),
     driverId: '',
     driverName: '',
     busNumber: '',
-    busId: '', // ✅ تمت إضافة busId
+    busId: '',
     currentMeter: '',
     paidAmount: '',
-    cost: '', // ✅ تمت إضافة cost للإصلاحات
+    cost: '',
     oilInterval: 2000,
     dailyRent: '',
     note: '',
@@ -48,6 +49,34 @@ const AccountantStats = () => {
   const safeNumber = (val) => {
     const num = Number(val);
     return isNaN(num) ? 0 : num;
+  };
+
+  // استخراج السنوات المتاحة من البيانات
+  const extractYearsFromData = (ledgerData, oilData, repairsData) => {
+    const yearsSet = new Set();
+    [...ledgerData, ...oilData, ...repairsData].forEach(item => {
+      const dateStr = item.date || item.changedate;
+      if (dateStr) {
+        const year = new Date(dateStr).getFullYear();
+        if (!isNaN(year)) yearsSet.add(year);
+      }
+    });
+    if (yearsSet.size === 0) yearsSet.add(currentYear);
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  };
+
+  // حساب تاريخ البداية والنهاية بناءً على السنة والشهر
+  const getDateRange = (year, month) => {
+    let fromDate, toDate;
+    if (month === 0) { // السنة كاملة
+      fromDate = `${year}-01-01`;
+      toDate = `${year}-12-31`;
+    } else { // شهر محدد
+      const lastDay = new Date(year, month, 0).getDate();
+      fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      toDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+    }
+    return { fromDate, toDate };
   };
 
   const loadAllData = async () => {
@@ -62,26 +91,35 @@ const AccountantStats = () => {
         smartGet('repairsData'),
       ]);
 
+      // استخراج السنوات المتاحة وتحديث القائمة المنسدلة
+      const years = extractYearsFromData(ledgerData, oilData, repairsData);
+      setAvailableYears(years);
+      if (!years.includes(filterYear)) {
+        setFilterYear(years[0]);
+      }
+
+      // حساب الفترة بناءً على السنة والشهر المختارين
+      const { fromDate, toDate } = getDateRange(filterYear, filterMonth);
+
       // 1. حساب إيرادات الفترة (المقبوضات)
       const filteredLedger = ledgerData.filter(
-        (entry) => entry.date >= dateFilter.from && entry.date <= dateFilter.to
+        (entry) => entry.date >= fromDate && entry.date <= toDate
       );
       const periodRevenue = filteredLedger.reduce((acc, curr) => acc + safeNumber(curr.paidAmount), 0);
 
       // 2. حساب مصاريف الزيت (من oil_changes) حسب الفترة
       const filteredOil = oilData.filter(
-        (oil) => oil.changedate >= dateFilter.from && oil.changedate <= dateFilter.to
+        (oil) => oil.changedate >= fromDate && oil.changedate <= toDate
       );
       const oilExpensesTotal = filteredOil.reduce((acc, curr) => acc + safeNumber(curr.amount), 0);
 
       // 3. حساب مصاريف الصيانة (من repairs) حسب الفترة
       const filteredRepairs = repairsData.filter(
-        (rep) => rep.date >= dateFilter.from && rep.date <= dateFilter.to
+        (rep) => rep.date >= fromDate && rep.date <= toDate
       );
       const maintenanceExpensesTotal = filteredRepairs.reduce((acc, curr) => acc + safeNumber(curr.cost), 0);
 
-      // 4. حساب المديونية الكلية للنظام بشكل صحيح
-      //    نستخدم dailyRent من الباص المرتبط بالسائق لكل سجل ledger
+      // 4. حساب المديونية الكلية للنظام (دون فلترة زمنية، لأنها رصيد تراكمي)
       const totalSystemDebt = drivers.reduce((acc, driver) => {
         const driverEntries = ledgerData.filter((l) => String(l.driverId) === String(driver.id));
         const bus = busesData.find((b) => b.id === driver.busId);
@@ -99,7 +137,7 @@ const AccountantStats = () => {
         return acc + driverDebt;
       }, 0);
 
-      // 5. معالجة بيانات السائقين مع أرصدتهم الحالية
+      // 5. معالجة بيانات السائقين مع أرصدتهم الحالية (أيضاً بدون فلترة زمنية)
       const processedDrivers = drivers.map((driver) => {
         const driverEntries = ledgerData.filter((l) => String(l.driverId) === String(driver.id));
         const bus = busesData.find((b) => b.id === driver.busId);
@@ -140,10 +178,10 @@ const AccountantStats = () => {
     }
   };
 
-  // تحميل البيانات عند تغيير التاريخ أو تحميل الصفحة
+  // تحميل البيانات عند تغيير السنة أو الشهر
   useEffect(() => {
     loadAllData();
-  }, [dateFilter]);
+  }, [filterYear, filterMonth]);
 
   // تعبئة بيانات السائق تلقائياً عند اختياره
   useEffect(() => {
@@ -166,7 +204,7 @@ const AccountantStats = () => {
 
   const closeQuickModal = () => {
     setShowModal(false);
-    setQuickTask('quick_rent'); // إعادة تعيين القيمة الافتراضية
+    setQuickTask('quick_rent');
     setQuickFormData({
       date: getTodayDate(),
       driverId: '',
@@ -217,7 +255,7 @@ const AccountantStats = () => {
         const repairData = {
           busId: selectedBus.id,
           date: quickFormData.date || new Date().toISOString(),
-          currentMeter: safeNumber(quickFormData.currentMeter), // ✅ تمت إضافة currentMeter
+          currentMeter: safeNumber(quickFormData.currentMeter),
           cost: safeNumber(quickFormData.cost),
           note: quickFormData.note || '',
         };
@@ -225,7 +263,7 @@ const AccountantStats = () => {
       }
 
       alert('تمت العملية بنجاح');
-      await loadAllData(); // ✅ إعادة التحميل بعد الحفظ
+      await loadAllData();
       closeQuickModal();
     } catch (err) {
       console.error('خطأ في الحفظ:', err);
@@ -235,10 +273,16 @@ const AccountantStats = () => {
     }
   };
 
-  // دالة مساعدة لعرض الأرقام مع تجنب NaN
   const formatStatValue = (value) => {
     const num = safeNumber(value);
     return num.toLocaleString();
+  };
+
+  // دالة للحصول على عنوان دخل الفترة
+  const getRevenueTitle = () => {
+    if (filterMonth === 0) return `دخل سنة ${filterYear}`;
+    const monthNames = ['', 'يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    return `دخل ${monthNames[filterMonth]} ${filterYear}`;
   };
 
   if (loading)
@@ -257,20 +301,50 @@ const AccountantStats = () => {
         <div className="horizon-tools-container">
           <div className="horizon-filter-pill">
             <div className="date-input-item">
-              <span>من</span>
-              <input
-                type="date"
-                value={dateFilter.from}
-                onChange={(e) => setDateFilter({ ...dateFilter, from: e.target.value })}
-              />
+              
+              <select
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(Number(e.target.value))}
+                style={{
+                  background: '#1b254b',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '14px',
+                  padding: '8px 12px',
+                  color: '#ffffff',
+                }}
+              >
+                <option value={0}>السنة بأكملها</option>
+                <option value={1}>يناير</option>
+                <option value={2}>فبراير</option>
+                <option value={3}>مارس</option>
+                <option value={4}>إبريل</option>
+                <option value={5}>مايو</option>
+                <option value={6}>يونيو</option>
+                <option value={7}>يوليو</option>
+                <option value={8}>أغسطس</option>
+                <option value={9}>سبتمبر</option>
+                <option value={10}>أكتوبر</option>
+                <option value={11}>نوفمبر</option>
+                <option value={12}>ديسمبر</option>
+              </select>
             </div>
             <div className="date-input-item">
-              <span>إلى</span>
-              <input
-                type="date"
-                value={dateFilter.to}
-                onChange={(e) => setDateFilter({ ...dateFilter, to: e.target.value })}
-              />
+              
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(Number(e.target.value))}
+                style={{
+                  background: '#1b254b',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '14px',
+                  padding: '8px 12px',
+                  color: '#ffffff',
+                }}
+              >
+                {availableYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
             </div>
           </div>
           <button className="horizon-circle-add" onClick={() => setShowModal(true)}>
@@ -284,7 +358,7 @@ const AccountantStats = () => {
 
       <div className="stats-grid">
         <StatCard
-          title={dateFilter.from === dateFilter.to ? 'دخل اليوم' : 'دخل الفترة'}
+          title={getRevenueTitle()}
           value={formatStatValue(stats.todayRevenue)}
           color="success"
           iconPath={mdiCash}

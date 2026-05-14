@@ -19,6 +19,7 @@ const BusLedger = () => {
 
   // البيانات المعالجة
   const [oilHistory, setOilHistory] = useState([]);
+  const [netProfit, setNetProfit] = useState(0);
   const [repairHistory, setRepairHistory] = useState([]);
   const [fullHistory, setFullHistory] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -54,6 +55,13 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
         smartGet("repairsData", `busId=${busId}`).catch(() => [])
       ]);
       console.log("📦 البيانات القادمة من السيرفر (oilData):", oilData);
+      
+      const ledgerData = await smartGet("ledger", `busId=${busId}`);
+const rentIncome = ledgerData
+  .filter(entry => entry.type === 'rent')
+  .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
+const calculatedNetProfit = rentIncome - (totalOil + totalRepair);
+setNetProfit(calculatedNetProfit);
 
       // 3. معالجة بيانات الزيت (ترتيب تصاعدي أولاً لضمان صحة الحساب الرقمي)
       let processedOil = oilData.map(o => {
@@ -118,63 +126,6 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
       setLoading(false);
     }
 };
-
-  /* const handleSave = async (e) => {
-  if (e) e.preventDefault();
-  try {
-    const isOil = modalType === "quick_oil";
-    const endpoint = isOil ? "oil_changes" : "repairsData";
-
-    // دالة الأمان لمنع NaN وتحويل الفراغ إلى 0
-    const fixNum = (val) => {
-      const n = parseInt(val, 10);
-      return isNaN(n) ? 0 : n;
-    };
-
-    const finalCost = fixNum(newEntry.paidAmount || newEntry.cost || 0);
-    const finalMeter = fixNum(newEntry.currentMeter || 0);
-
-    const dataToSave = isOil
-      ? {
-          // مطابقة تماماً لما يقرأه السيرفر
-          busId: parseInt(busId),
-          date: newEntry.date || new Date().toISOString().split("T")[0],
-          currentMeter: finalMeter,
-          paidAmount: finalCost,
-          note: String(newEntry.note || "تغيير زيت دوري"),
-        }
-      : {
-          // الصيانة كما هي تعمل الآن
-          busId: parseInt(busId),
-          date: newEntry.date || new Date().toISOString().split("T")[0],
-          cost: finalCost,
-          currentMeter: finalMeter,
-          note: String(newEntry.note || ""),
-        };
-
-    console.log("🚀 جاري الحفظ بالبيانات:", dataToSave);
-
-    await smartSave(endpoint, dataToSave);
-    await fetchBusData();
-    setShowModal(false);
-
-    // تنظيف الحالة
-    setNewEntry({
-      busId: busId,
-      date: new Date().toISOString().split("T")[0],
-      currentMeter: "",
-      paidAmount: "",
-      dailyRent: "",
-      cost: "",
-      note: "",
-    });
-
-    alert("تم الحفظ بنجاح");
-  } catch (err) {
-    console.error("❌ فشل الحفظ:", err);
-    alert("فشل الحفظ: يرجى إدخال أرقام صحيحة");
-  }
-}; */
 const handleSave = async (e) => {
   if (e) e.preventDefault();
   try {
@@ -369,21 +320,21 @@ const handleCloseModal = () => {
   };
 
   return (
-    <div className={styles.ledgerPage} dir="rtl">
-      <header className={styles.headerCard}>
-        <div className="right-side">
-          <button className={styles.backLink} onClick={() => navigate('/home/buses')}>← العودة</button>
-          <h1>سجل صيانة المركبة</h1>
-          <h3>مركبة 
-          #{bus?.busNumber}</h3>
+    <div className={styles.ledgerPage} >
+    
+      <header className={styles.headerCard} >
+        <div className={styles.headerleft}>
+          <button className="back-link" onClick={() => navigate('/home/buses')}>← العودة</button>
         </div>
         
-        <div className={styles.headerActions}>
-        <button className="export-btn" onClick={() => exportFilteredPDF('repair')}>🔧  تصدير PDF</button>
-        <button className="export-btn" onClick={() => exportFilteredPDF('oil')}>🛢 تصدير PDF</button>
-           <button className={styles.actionBtn} onClick={() => { setModalType("quick_oil"); setShowModal(true); }}>🛢️ زيت جديد</button>
-           <button className={styles.actionBtn} style={{background: '#ffab00'}} onClick={() => { setModalType("quick_repair"); setShowModal(true); }}>🔧 صيانة جديدة</button>
+        <div className={styles.headercenter}>
+          <h1>سجل صيانة الباصات</h1>
         </div>
+         <div className={styles.headerright}>
+          <h3> مركبة رقم | #{bus?.busNumber}</h3>
+        </div>
+        
+        
       </header>
 
       {/* قسم الملخص - Stats */}
@@ -392,6 +343,12 @@ const handleCloseModal = () => {
           <span>إجمالي المنصرفات</span>
           <h2 className={styles.textDanger}>{(totalOil + totalRepair).toLocaleString()} ريال</h2>
         </div>
+        <div className={styles.statBox}>
+  <span>صافي الربح</span>
+  <h2 style={{ color: netProfit >= 0 ? '#00e676' : '#ff5252' }}>
+    {netProfit.toLocaleString()} ريال
+  </h2>
+</div>
         <div className={styles.statBox} onClick={() => setActiveTab('oil')} style={{cursor: 'pointer', border: activeTab === 'oil' ? '1px solid #00b8d8' : ''}}>
           <span>إجمالي الزيت</span>
           <h2 style={{color: '#00b8d8'}}>{totalOil.toLocaleString()} ريال</h2>
@@ -404,9 +361,20 @@ const handleCloseModal = () => {
 
       {/* أزرار التحويل بين الجداول */}
       <div className={styles.tabsContainer}>
+      
+       <div className={styles.tabssection} >
         <button className={activeTab === 'all' ? styles.activeTab : ''} onClick={() => setActiveTab('all')}>السجل الشامل</button>
         <button className={activeTab === 'oil' ? styles.activeTab : ''} onClick={() => setActiveTab('oil')}>سجل الزيت</button>
         <button className={activeTab === 'repair' ? styles.activeTab : ''} onClick={() => setActiveTab('repair')}>سجل الصيانة</button>
+        </div>
+        
+        <div className={styles.headerActions}>
+        <button className="export-btn" onClick={() => exportFilteredPDF('repair')}>🔧  تصدير PDF</button>
+        <button className="export-btn" onClick={() => exportFilteredPDF('oil')}>🛢 تصدير PDF</button>
+           <button className={styles.actionBtn} style={{background: '#4318ff'}} onClick={() => { setModalType("quick_oil"); setShowModal(true); }}>🛢️ زيت جديد</button>
+           <button className={styles.actionBtn} style={{background: '#ffab00'}} onClick={() => { setModalType("quick_repair"); setShowModal(true); }}>🔧 صيانة جديدة</button>
+        </div>
+        
       </div>
 
       {/* الجدول الديناميكي */}
@@ -419,6 +387,7 @@ const handleCloseModal = () => {
               <th>البيان/الملاحظة</th>
               <th>التكلفة</th>
               <th>العداد</th>
+              <th>الإجراء</th>
             </tr>
           </thead>
           <tbody>

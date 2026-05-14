@@ -1,10 +1,8 @@
-/* BusLedger.module.css */
 
 
-/* الحاوية الرئيسية للصفحة */
 .ledgerPage {
   padding: 20px;
-  background-color: #0b1437; /* اللون الداكن العميق */
+  background-color: #0b1437;
   min-height: 100vh;
   min-width: 1000px;
   direction: rtl;
@@ -15,30 +13,27 @@
     left: 0;
     width: 100%;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.7); /* تعتيم الخلفية */
+    background-color: rgba(0, 0, 0, 0.7); 
     display: none; 
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    backdrop-filter: blur(8px); /* زيادة الضبابية ليعطي شكل فخم */
+    backdrop-filter: blur(8px);
 }
 
 .loader-overlay.active {
     display: flex;
 }
 
-/* هذا الجزء هو المسؤول عن إظهار العنصر المختفي */
 .loader-overlay svg {
-    width: 150px !important; /* تحديد عرض واضح */
+    width: 150px !important; 
     height: auto !important;
     display: block;
     overflow: visible;
 }
 
-
-/* كرت الهيدر العلوي */
 .headerCard {
-  display: flex;
+  
   justify-content: space-between;
   align-items: center;
   background: #111c44;
@@ -48,32 +43,38 @@
   margin-bottom: 30px;
   border: 1px solid #1b254b;
 }
-
-.headerCard h1 {
-  margin: 5px 0;
-  font-size: 22px;
-  color: #ffffff;
+.headerright{
+  flex: 3;
+  display: flex;
+  direction: rtl;
+  color: white;
 }
-
-.headerCard h3 {
-  color: #a3edfd;
-  margin: 0;
-  font-size: 16px;
+.headerleft {
+  flex: 1;
+  display: flex;
+  direction: ltr;
 }
-
-.backLink {
+/*.header-left { justify-content: flex-start; }*/
+.headercenter { 
+  flex: 2;
+  color: white;
+  text-align: center;
+} 
+/*
+.header-right { justify-content: flex-end; }
+*/
+.backlink {
   background: none;
   border: none;
   color: #707eae;
   cursor: pointer;
   font-weight: 600;
-  margin-bottom: 10px;
-  display: block;
+  font-size: 16px;
 }
-
 .headerActions {
   display: flex;
   gap: 12px;
+  margin-right: 35px;
 }
 
 .actionBtn {
@@ -127,8 +128,14 @@
 /* نظام التبويبات (Tabs) */
 .tabsContainer {
   display: flex;
+  margin-bottom: 20px;
+  justify-content: space-between;
   gap: 10px;
-  margin-bottom: 15px;
+  
+}
+.tabssection{
+  display: flex;
+  gap: 10px;
 }
 
 .tabsContainer button {

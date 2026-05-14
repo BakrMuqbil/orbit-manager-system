@@ -437,8 +437,6 @@
 │   ├── .gitignore
 │   ├── db.js
 │   ├── file_structure.fs
-│   ├── file_structure.fs (2)
-│   ├── filebrowser.db
 │   ├── index.html
 │   ├── package-lock.json
 │   ├── package.json
