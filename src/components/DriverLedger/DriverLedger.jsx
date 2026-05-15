@@ -6,6 +6,7 @@ import { smartGet, smartSave, smartDelete } from '../../utils/apiService';
 import './DriverLedger.css';
 import UniversalModal from '../UniversalModal';
 import { CloudLoader } from '../../library/items.jsx';
+import { printDriverLedgerPDF } from '../../utils/pdfGenerator';
 
 const DriverLedger = () => {
   const { driverId } = useParams();
@@ -238,27 +239,20 @@ const totalRentPaid = ledger
     return `${days[dateObj.getDay()]}-${String(dateObj.getDate()).padStart(2, "0")}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
   };
 
-  const exportPDF = () => {
-    if (ledger.length === 0) {
-      alert("لا توجد بيانات للتصدير");
-      return;
-    }
-    const doc = new jsPDF("p", "pt", "a4");
-    doc.text(`تقرير حساب السائق: ${driver.name}`, 40, 50);
-    autoTable(doc, {
-      startY: 80,
-      head: [["التاريخ", "العداد", "المسافة", "الإيجار", "المدفوع", "الرصيد التراكمي"]],
-      body: ledger.map((item) => [
-        formatDate(item.date),
-        item.currentMeter,
-        `${item.distance} كم`,
-        Number(item.dailyRent || 0).toLocaleString(),
-        Number(item.paidAmount || 0).toLocaleString(),
-        Number(item.cumulativeBalance || 0).toLocaleString()
-      ])
-    });
-    doc.save(`Driver_${driver.name}.pdf`);
-  };
+  // في DriverLedger.jsx
+
+
+const exportPDF = () => {
+  if (ledger.length === 0) {
+    alert("لا توجد بيانات للتصدير");
+    return;
+  }
+  const totalRentPaid = ledger
+    .filter(entry => entry.type === 'rent')
+    .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
+  const totalDebt = Number(ledger[0]?.cumulativeBalance || driver?.opening_balance || 0);
+  printDriverLedgerPDF(driver, ledger, totalRentPaid, totalDebt);
+};
 
   if (loading) return (
     <div className={`loader-overlay ${loading ? 'active' : ''}`}>

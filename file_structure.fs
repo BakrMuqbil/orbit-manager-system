@@ -365,6 +365,9 @@
 │   ├── □ css/-
 │   │   ├── login-style.css
 │   │   └── style.css
+│   ├── □ public/-
+│   │   └── □ fonts/-
+│   │       └── NotoSansArabic-Regular.ttf
 │   ├── □ server/-
 │   │   ├── auth.js
 │   │   ├── authMiddleware.js
@@ -431,7 +434,8 @@
 │   │   │       ├── login.jsx
 │   │   │       └── login.module.css
 │   │   ├── □ utils/-
-│   │   │   └── apiService.js
+│   │   │   ├── apiService.js
+│   │   │   └── pdfGenerator.js
 │   │   ├── App.jsx
 │   │   └── index.jsx
 │   ├── .env

@@ -6,7 +6,7 @@ import { smartGet, smartSave, smartDelete } from '../../utils/apiService';
 import styles from './BusLedger.module.css'; 
 import UniversalModal from '../UniversalModal'; 
 import { CloudLoader } from '../../library/items';
-
+import { printBusLedgerPDF } from '../../utils/pdfGenerator';
 const BusLedger = () => {
   const { busId } = useParams();
   const navigate = useNavigate();
@@ -41,90 +41,89 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
   }, [busId]);
   
   const fetchBusData = async () => {
-    try {
-      setLoading(true);
-      
-      // 1. جلب بيانات الباصات وتحديد الباص الحالي
-      const buses = await smartGet("buses");
-      const currentBus = buses.find(b => b.id.toString() === busId.toString());
-      setBus(currentBus);
+  try {
+    setLoading(true);
 
-      // 2. جلب سجلات الزيت والصيانة بالتوازي
-      const [oilData, repairData] = await Promise.all([
-        smartGet("oil_changes", `busId=${busId}`).catch(() => []),
-        smartGet("repairsData", `busId=${busId}`).catch(() => [])
-      ]);
-      console.log("📦 البيانات القادمة من السيرفر (oilData):", oilData);
-      
-      const ledgerData = await smartGet("ledger", `busId=${busId}`);
-const rentIncome = ledgerData
-  .filter(entry => entry.type === 'rent')
-  .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
-const calculatedNetProfit = rentIncome - (totalOil + totalRepair);
-setNetProfit(calculatedNetProfit);
+    // 1. جلب بيانات الباصات
+    const buses = await smartGet("buses");
+    const currentBus = buses.find(b => b.id.toString() === busId.toString());
+    setBus(currentBus);
 
-      // 3. معالجة بيانات الزيت (ترتيب تصاعدي أولاً لضمان صحة الحساب الرقمي)
-      let processedOil = oilData.map(o => {
-        // توحيد مسمى العداد من currentMeter (الظاهر في الكونسول) أو المسميات الأخرى
-        const actualMeter = Number(o.currentMeter || o.totaldistance || o.meter || 0);
-        
-        return { 
-          ...o, 
-          type: 'oil', 
-          label: 'تغيير زيت',
-          cost: Number(o.amount || o.paidAmount || 0),
-          meter: actualMeter, 
-          date: o.changedate || o.changedate || o.date 
-        };
-      }).sort((a, b) => a.meter - b.meter); // الترتيب من الأقل عدداً للأكثر
+    // 2. جلب سجلات الزيت والصيانة والـ ledger بالتوازي
+    const [oilData, repairData, ledgerData] = await Promise.all([
+      smartGet("oil_changes", `busId=${busId}`).catch(() => []),
+      smartGet("repairsData", `busId=${busId}`).catch(() => []),
+      smartGet("ledger", `busId=${busId}`).catch(() => [])
+    ]);
+    console.log("📦 البيانات القادمة من السيرفر (oilData):", oilData);
 
-      // 4. حساب المسافة المقطوعة (diff)
-      processedOil = processedOil.map((item, index, array) => {
-        const tripDistance = index > 0 ? (item.meter - array[index - 1].meter) : 0;
-        return { ...item, diff: tripDistance }; 
-      });
+    // 3. معالجة بيانات الزيت
+    let processedOil = oilData.map(o => {
+      const actualMeter = Number(o.currentMeter || o.totaldistance || o.meter || 0);
+      return {
+        ...o,
+        type: 'oil',
+        label: 'تغيير زيت',
+        cost: Number(o.amount || o.paidAmount || 0),
+        meter: actualMeter,
+        date: o.changedate || o.changedate || o.date
+      };
+    }).sort((a, b) => a.meter - b.meter);
 
-      // 5. معالجة بيانات الصيانة
-      const processedRepair = repairData.map(r => ({ 
-        ...r,
-        type: 'repair', 
-        label: 'إصلاح/صيانة', 
-        cost: Number(r.cost || 0), 
-        meter: Number(r.currentMeter || 0),
-        date: r.date,
-        diff: 0 
-      }));
+    // 4. حساب المسافة المقطوعة (diff)
+    processedOil = processedOil.map((item, index, array) => {
+      const tripDistance = index > 0 ? (item.meter - array[index - 1].meter) : 0;
+      return { ...item, diff: tripDistance };
+    });
 
-      // 6. وظيفة الترتيب التنازلي (الأحدث فوق) مع حل مشكلة Arithmetic Operation في Acode
-      const sortByDateDesc = (data) => [...data].sort((a, b) => {
-        const dateB = new Date(b.date).getTime();
-        const dateA = new Date(a.date).getTime();
-        return dateB - dateA; // استخدام getTime() يمنع الخطأ البرمجي تماماً
-      });
+    // 5. معالجة بيانات الصيانة
+    const processedRepair = repairData.map(r => ({
+      ...r,
+      type: 'repair',
+      label: 'إصلاح/صيانة',
+      cost: Number(r.cost || 0),
+      meter: Number(r.currentMeter || 0),
+      date: r.date,
+      diff: 0
+    }));
 
-      // 7. تجهيز المصفوفات النهائية للعرض
-      const finalOilHistory = sortByDateDesc(processedOil);
-      const finalRepairHistory = sortByDateDesc(processedRepair);
-      const finalFullHistory = sortByDateDesc([...processedOil, ...processedRepair]);
+    // 6. الترتيب التنازلي حسب التاريخ
+    const sortByDateDesc = (data) => [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-      // --- منطقة الاختبار (الآن ستظهر الأرقام الحقيقية) ---
-      console.log("--------------------------------");
-      console.log("🔍 فحص بيانات الزيت النهائية (الترتيب: الأحدث أولاً):");
-      finalOilHistory.forEach((item, index) => {
-          console.log(`سجل ${index + 1}: العداد = ${item.meter} ، المسافة المقطوعة (diff) = ${item.diff}`);
-      });
-      console.log("--------------------------------");
+    const finalOilHistory = sortByDateDesc(processedOil);
+    const finalRepairHistory = sortByDateDesc(processedRepair);
+    const finalFullHistory = sortByDateDesc([...processedOil, ...processedRepair]);
 
-      // 8. تحديث الحالة لمرة واحدة لكل مصفوفة
-      setOilHistory(finalOilHistory);
-      setRepairHistory(finalRepairHistory);
-      setFullHistory(finalFullHistory);
-      
-      setLoading(false);
-    } catch (err) {
-      console.error("❌ خطأ في معالجة البيانات:", err);
-      setLoading(false);
-    }
+    // ✅ حساب إجمالي الزيت والصيانة من المصفوفات النهائية
+    const totalOilLocal = finalOilHistory.reduce((sum, item) => sum + item.cost, 0);
+    const totalRepairLocal = finalRepairHistory.reduce((sum, item) => sum + item.cost, 0);
+
+    // ✅ حساب إيرادات الإيجار من ledgerData
+    const rentIncome = ledgerData
+      .filter(entry => entry.type === 'rent')
+      .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
+
+    // ✅ حساب صافي الربح
+    const calculatedNetProfit = rentIncome - (totalOilLocal + totalRepairLocal);
+    setNetProfit(calculatedNetProfit);
+
+    // تحديث الحالات
+    setOilHistory(finalOilHistory);
+    setRepairHistory(finalRepairHistory);
+    setFullHistory(finalFullHistory);
+
+    console.log("--------------------------------");
+    console.log("🔍 فحص بيانات الزيت النهائية:");
+    finalOilHistory.forEach((item, index) => {
+      console.log(`سجل ${index + 1}: العداد = ${item.meter} ، المسافة المقطوعة (diff) = ${item.diff}`);
+    });
+    console.log("--------------------------------");
+
+    setLoading(false);
+  } catch (err) {
+    console.error("❌ خطأ في معالجة البيانات:", err);
+    setLoading(false);
+  }
 };
 const handleSave = async (e) => {
   if (e) e.preventDefault();
@@ -227,61 +226,22 @@ const handleSave = async (e) => {
     )}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
   };
 // دالة لطباعة تقرير مخصص حسب النوع (type)
-const exportFilteredPDF = (filterType) => {
-  const doc = new jsPDF("p", "pt", "a4");
-  const busName = bus?.busNumber || "Bus";
-  
-  // 1. تصفية البيانات بناءً على النوع المختار
-  const filteredData = fullHistory.filter(item => item.type === filterType);
-  
-  
-  // تحديد عنوان التقرير بناءً على النوع
-  const reportTitle = filterType === 'oil' ? 'Oil Change History Report' : 'General Repairs Report';
-  
 
-  // 2. إعداد الهيدر
-  doc.setFontSize(20);
-  doc.setTextColor(11, 20, 55); // تنسيق Navy الفاخر
-  
-  
-  doc.text(reportTitle, 40, 50);
-  doc.setFontSize(12);
-  doc.setTextColor(100);
-  doc.text(`Bus: ${busName} | Records: ${filteredData.length}`, 40, 75);
-  
-  // 3. تحويل البيانات المفلترة إلى مصفوفة للجدول
-  const tableBody = filteredData.map((item) => [
-    new Date(item.date).toLocaleDateString("en-US"),
-    `${item.meter?.toLocaleString()} KM`,
-    filterType === 'oil' ? `${item.diff?.toLocaleString() || 0} KM` : "---", // المسافة تظهر فقط للزيت
-    `${Number(item.cost).toLocaleString()} YR`,
-    item.note || "No notes"
-  ]);
-
-  // 4. إنشاء الجدول
-  autoTable(doc, {
-    startY: 100,
-    head: [["Date", "Meter Reading", "Trip Dist", "Cost", "Description"]],
-    body: tableBody,
-    headStyles: { fillColor: [11, 20, 55] }, // لون Navy الملكي
-    alternateRowStyles: { fillColor: [245, 247, 251] },
-  });
-  const finalY = doc.lastAutoTable.finalY; // هذا يعطيك آخر نقطة وصل لها الجدول
-
-doc.setFontSize(12);
-doc.setTextColor(0);
-
-// إضافة إجمالي التكلفة في اليمين
-const totalCost = filteredData.reduce((sum, item) => sum + Number(item.cost), 0);
-doc.text(`Total Cost: ${totalCost.toLocaleString()} YR`, 550, finalY + 30, { align: "right" });
-
-// إضافة خانة التوقيع في اليمين
-doc.text("Signature: ________________",50, finalY + 70);
+// استبدال دوال exportFilteredPDF (للزيت والصيانة)
 
 
-  // 5. حفظ الملف باسم النوع
-  doc.save(`${filterType}_Report_${busName}.pdf`);
+// في BusLedger.jsx
+
+
+const exportFullPDF = () => {
+  if (fullHistory.length === 0) {
+    alert("لا توجد سجلات للتصدير");
+    return;
+  }
+  printBusLedgerPDF(bus, fullHistory, totalOil, totalRepair);
 };
+
+// يمكنك إضافة زر جديد "طباعة التقرير كامل" واستدعاء exportFullPDF
 const handleCloseModal = () => {
     // 1. إغلاق المودال برمجياً
     setShowModal(false);
@@ -369,8 +329,8 @@ const handleCloseModal = () => {
         </div>
         
         <div className={styles.headerActions}>
-        <button className="export-btn" onClick={() => exportFilteredPDF('repair')}>🔧  تصدير PDF</button>
-        <button className="export-btn" onClick={() => exportFilteredPDF('oil')}>🛢 تصدير PDF</button>
+        <button className="export-btn" onClick={() => exportFullPDF('repair')}>🔧  تصدير PDF</button>
+        <button className="export-btn" onClick={() => exportFullPDF('oil')}>🛢 تصدير PDF</button>
            <button className={styles.actionBtn} style={{background: '#4318ff'}} onClick={() => { setModalType("quick_oil"); setShowModal(true); }}>🛢️ زيت جديد</button>
            <button className={styles.actionBtn} style={{background: '#ffab00'}} onClick={() => { setModalType("quick_repair"); setShowModal(true); }}>🔧 صيانة جديدة</button>
         </div>
