@@ -368,7 +368,8 @@
 │   ├── □ server/-
 │   │   ├── auth.js
 │   │   ├── authMiddleware.js
-│   │   └── index.js
+│   │   ├── index.js
+│   │   └── subscriptionMiddleware.js
 │   ├── □ src/-
 │   │   ├── □ assets/-
 │   │   │   ├── □ images/-

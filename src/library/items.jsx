@@ -128,3 +128,13 @@ export const EmptyFramedCard = ({ children }) => {
     </div>
   );
 };
+export const getSubscriptionStatus = (expiryDate) => {
+  if (!expiryDate) return { text: 'غير محدد', color: '#718096', bg: 'rgba(113, 128, 150, 0.1)' };
+  const today = new Date();
+  const expiry = new Date(expiryDate);
+  const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return { text: 'منتهي', color: '#ff4d4d', bg: 'rgba(255, 77, 77, 0.1)' };
+  if (diffDays <= 7) return { text: `ينتهي خلال ${diffDays} يوم`, color: '#ffab00', bg: 'rgba(255, 171, 0, 0.1)' };
+  return { text: `نشط`, color: '#48bb78', bg: 'rgba(72, 187, 120, 0.1)' };
+};

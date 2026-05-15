@@ -36,6 +36,31 @@ router.post('/login', async (req, res) => {
         return res.status(401).json({ error: 'كود الشركة غير صحيح أو غير مدخل' });
       }
     }
+    // داخل auth.js، بعد التحقق من companyCode وقبل إنشاء التوكن
+
+// التحقق من صلاحية اشتراك الشركة (للمحاسبين فقط)
+    if (user.role === 'company_accountant') {
+    const companyResult = await db.query(
+        `SELECT subscription_expiry, status FROM companies WHERE id = $1`,
+        [user.company_id]
+    );
+    
+    if (companyResult.rows.length === 0) {
+        return res.status(401).json({ error: 'الشركة غير موجودة' });
+    }
+    
+    const company = companyResult.rows[0];
+    const expiryDate = new Date(company.subscription_expiry);
+    const today = new Date();
+    
+    if (company.status === 'متوقفة') {
+        return res.status(401).json({ error: 'حساب الشركة موقوف، يرجى التواصل مع المدير' });
+    }
+    
+    if (expiryDate < today) {
+        return res.status(401).json({ error: 'انتهت صلاحية اشتراك الشركة. يرجى تجديد الاشتراك لتسجيل الدخول' });
+    }
+}
 
     // إنشاء التوكن وتخزين الـ id والـ role والـ company_id بداخله
     const token = jwt.sign(

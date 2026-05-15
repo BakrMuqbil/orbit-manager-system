@@ -3,7 +3,7 @@ import cors from 'cors';
 import db from '../db.js';
 import authRoutes from './auth.js';
 import authMiddleware from './authMiddleware.js';
-
+import { checkCompanySubscription } from './subscriptionMiddleware.js';
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -145,14 +145,24 @@ app.put('/api/companies/:id', authMiddleware, async (req, res) => {
     
     // إذا كان هناك طلب "تجديد" أو "تغيير نوع الباقة"
     if (renew || package_type) {
-      // حساب القيم الجديدة بناءً على الباقة المختارة
       let months = (package_type === 'سنة') ? 12 : (package_type === '6 أشهر') ? 6 : (package_type === '3 أشهر') ? 3 : 1;
       let amount = (package_type === 'سنة') ? 100000 : (package_type === '6 أشهر') ? 60000 : (package_type === '3 أشهر') ? 30000 : 0;
       
-      const newExpiry = new Date();
-      newExpiry.setMonth(newExpiry.getMonth() + months);
+      // جلب تاريخ الانتهاء الحالي
+      const currentCompany = await db.query('SELECT subscription_expiry FROM companies WHERE id = $1', [id]);
+      let newExpiry;
+      
+      if (currentCompany.rows[0]?.subscription_expiry && new Date(currentCompany.rows[0].subscription_expiry) > new Date()) {
+        // اشتراك لا يزال سارياً: أضف المدة إلى تاريخ الانتهاء الحالي
+        newExpiry = new Date(currentCompany.rows[0].subscription_expiry);
+        newExpiry.setMonth(newExpiry.getMonth() + months);
+      } else {
+        // اشتراك منتهٍ أو غير موجود: ابدأ من اليوم
+        newExpiry = new Date();
+        newExpiry.setMonth(newExpiry.getMonth() + months);
+      }
 
-      // التحديث الشامل: يشمل البيانات الأساسية + الباقة والمبلغ والتاريخ
+      // تنفيذ التحديث الكامل (البيانات الأساسية + الاشتراك)
       result = await db.query(
         `UPDATE companies 
          SET name=$1, code=$2, owner_name=$3, phone=$4, address=$5, status=$6, 
@@ -161,7 +171,7 @@ app.put('/api/companies/:id', authMiddleware, async (req, res) => {
         [name, code, owner_name, phone, address, status || 'نشط', package_type, amount, newExpiry, id]
       );
     } else {
-      // تحديث البيانات العادية فقط (في حال لم يتم تغيير الباقة)
+      // تحديث البيانات العادية فقط (بدون تغيير الباقة أو التجديد)
       result = await db.query(
         `UPDATE companies SET name=$1, code=$2, owner_name=$3, phone=$4, address=$5, status=$6 WHERE id=$7 RETURNING *`,
         [name, code, owner_name, phone, address, status || 'نشط', id]
@@ -274,7 +284,7 @@ app.delete('/api/users/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // 2. مسارات المركبات (Buses)
 // ==========================================
-app.get('/api/buses', authMiddleware, async (req, res) => {
+app.get('/api/buses', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { company_id, role } = req.user;
   try {
     let query = `
@@ -292,7 +302,7 @@ app.get('/api/buses', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/buses', authMiddleware, async (req, res) => {
+app.post('/api/buses', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { busNumber, initialMeter, dailyRent } = req.body;
   const { company_id } = req.user;
   try {
@@ -306,7 +316,7 @@ app.post('/api/buses', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/buses/:id', authMiddleware, async (req, res) => {
+app.put('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { busNumber, initialMeter, dailyRent } = req.body;
   const { company_id, role } = req.user;
@@ -321,7 +331,7 @@ app.put('/api/buses/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/buses/:id', authMiddleware, async (req, res) => {
+app.delete('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { company_id, role } = req.user;
   try {
@@ -337,7 +347,7 @@ app.delete('/api/buses/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // 3. مسارات السائقين (Drivers)
 // ==========================================
-app.get('/api/driversData', authMiddleware, async (req, res) => {
+app.get('/api/driversData', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { company_id, role } = req.user;
   try {
     let query = `
@@ -356,7 +366,7 @@ app.get('/api/driversData', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/driversData', authMiddleware, async (req, res) => {
+app.post('/api/driversData', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { name, phone, guarantor, receiveDate, busId } = req.body;
   const { company_id } = req.user;
   try {
@@ -371,7 +381,7 @@ app.post('/api/driversData', authMiddleware, async (req, res) => {
 });
 
 // تعديل بيانات سائق
-app.put('/api/driversData/:id', authMiddleware, async (req, res) => {
+app.put('/api/driversData/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { name, phone, guarantor, receiveDate, busId } = req.body;
   const { company_id, role } = req.user;
@@ -398,7 +408,7 @@ app.put('/api/driversData/:id', authMiddleware, async (req, res) => {
 });
 
 // حذف سائق
-app.delete('/api/driversData/:id', authMiddleware, async (req, res) => {
+app.delete('/api/driversData/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { company_id, role } = req.user;
 
@@ -420,7 +430,7 @@ app.delete('/api/driversData/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // 4. مسارات السجل المالي (Ledger)
 // ==========================================
-app.get('/api/ledger', authMiddleware, async (req, res) => {
+app.get('/api/ledger', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { driverId } = req.query;
   const { company_id, role } = req.user;
   try {
@@ -443,7 +453,7 @@ app.get('/api/ledger', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/ledger', authMiddleware, async (req, res) => {
+app.post('/api/ledger', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { driverId, busId, date, currentMeter, paidAmount, type, note } = req.body;
   const { company_id } = req.user;
   try {
@@ -458,7 +468,7 @@ app.post('/api/ledger', authMiddleware, async (req, res) => {
 });
 
 // تعديل سجل مالي
-app.put('/api/ledger/:id', authMiddleware, async (req, res) => {
+app.put('/api/ledger/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { driverId, busId, date, currentMeter, paidAmount, type, note } = req.body;
   const { company_id, role } = req.user;
@@ -484,7 +494,7 @@ app.put('/api/ledger/:id', authMiddleware, async (req, res) => {
 });
 
 // حذف سجل مالي
-app.delete('/api/ledger/:id', authMiddleware, async (req, res) => {
+app.delete('/api/ledger/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { company_id, role } = req.user;
 
@@ -505,7 +515,7 @@ app.delete('/api/ledger/:id', authMiddleware, async (req, res) => {
 // =======================
 // 🛠️ مسارات الإصلاحات (repairs)
 // =======================
-app.get('/api/repairsData', authMiddleware, async (req, res) => {
+app.get('/api/repairsData', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { busId } = req.query;
   const { company_id, role } = req.user;
   try {
@@ -528,7 +538,7 @@ app.get('/api/repairsData', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/repairsData', authMiddleware, async (req, res) => {
+app.post('/api/repairsData', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { busId, date, note, cost } = req.body;
   const { company_id } = req.user;
   try {
@@ -543,7 +553,7 @@ app.post('/api/repairsData', authMiddleware, async (req, res) => {
 });
 
 // تعديل إصلاح موجود
-app.put('/api/repairsData/:id', authMiddleware, async (req, res) => {
+app.put('/api/repairsData/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { busId, date, note, cost } = req.body;
   const { company_id, role } = req.user;
@@ -566,7 +576,7 @@ app.put('/api/repairsData/:id', authMiddleware, async (req, res) => {
 });
 
 // حذف إصلاح
-app.delete('/api/repairsData/:id', authMiddleware, async (req, res) => {
+app.delete('/api/repairsData/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { company_id, role } = req.user;
 
@@ -588,7 +598,7 @@ app.delete('/api/repairsData/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // 🛢️ مسار الزيت (Oil Changes)
 // ==========================================
-app.get('/api/oil_changes', authMiddleware, async (req, res) => {
+app.get('/api/oil_changes', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { busId } = req.query;
   const { company_id, role } = req.user;
   try {
@@ -609,7 +619,7 @@ app.get('/api/oil_changes', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/oil_changes', authMiddleware, async (req, res) => {
+app.post('/api/oil_changes', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { busId, date, currentMeter, paidAmount, note } = req.body;
   const { company_id } = req.user;
   try {
@@ -625,7 +635,7 @@ app.post('/api/oil_changes', authMiddleware, async (req, res) => {
 });
 
 // تعديل سجل تغيير زيت
-app.put('/api/oil_changes/:id', authMiddleware, async (req, res) => {
+app.put('/api/oil_changes/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { busId, date, currentMeter, paidAmount, note } = req.body;
   const { company_id, role } = req.user;
@@ -653,7 +663,7 @@ app.put('/api/oil_changes/:id', authMiddleware, async (req, res) => {
 });
 
 // حذف سجل تغيير زيت
-app.delete('/api/oil_changes/:id', authMiddleware, async (req, res) => {
+app.delete('/api/oil_changes/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { company_id, role } = req.user;
 
