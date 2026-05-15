@@ -100,13 +100,41 @@ export const printElement = (elementId, title = 'تقرير') => {
  * تقرير سجل السائق (DriverLedger)
  * يقوم بإنشاء HTML مؤقت للطباعة ثم طباعته
  */
+// دالة مساعدة لتنسيق التاريخ مثل الصفحة الأصلية
+const formatDateForPrint = (dateString) => {
+  if (!dateString) return "";
+  const dateObj = new Date(dateString);
+  const days = [
+    "الأحد",
+    "الاثنين",
+    "الثلاثاء",
+    "الأربعاء",
+    "الخميس",
+    "الجمعة",
+    "السبت"
+  ];
+  return `${days[dateObj.getDay()]}-${String(dateObj.getDate()).padStart(2, "0")}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+};
+
+// دالة ترجمة نوع العملية إلى نص عربي
+const getTransactionTypeLabel = (type) => {
+  switch (type) {
+    case 'rent': return ' إيجار يومي';
+    case 'debt': return ' دين / سلفة';
+    case 'payment': return ' سداد مديونية';
+    default: return type || '---';
+  }
+};
+
 export const printDriverLedgerPDF = (driver, ledger, totalRentPaid, totalDebt) => {
   // بناء جدول HTML من بيانات ledger
   let tableRows = '';
   ledger.forEach(entry => {
     tableRows += `
       <tr>
-        <td>${entry.date || ''}</td>
+        <td>${formatDateForPrint(entry.date)}</td>
+        <td>${getTransactionTypeLabel(entry.type)}</td>
+        <td>${entry.note || '---'}</td>
         <td>${entry.currentMeter || 0}</td>
         <td>${entry.distance || 0}</td>
         <td>${Number(entry.dailyRent || 0).toLocaleString()}</td>
@@ -121,10 +149,12 @@ export const printDriverLedgerPDF = (driver, ledger, totalRentPaid, totalDebt) =
       <h1>سجل الحساب اليومي للسائق: ${driver.name}</h1>
       <p>المركبة: ${driver.busNumber || 'غير مرتبط'} | تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
     </div>
-    <table>
+    <table dir="rtl">
       <thead>
         <tr>
           <th>التاريخ</th>
+          <th>نوع العملية</th>
+          <th>البيان / الملاحظة</th>
           <th>الميتار (كم)</th>
           <th>المسافة (كم)</th>
           <th>الإيجار (ريال)</th>
@@ -170,7 +200,6 @@ export const printDriverLedgerPDF = (driver, ledger, totalRentPaid, totalDebt) =
   win.document.close();
   win.print();
 };
-
 /**
  * تقرير سجل المركبة (BusLedger)
  */
@@ -179,7 +208,7 @@ export const printBusLedgerPDF = (bus, fullHistory, totalOil, totalRepair) => {
   fullHistory.forEach(item => {
     tableRows += `
       <tr>
-        <td>${item.date || ''}</td>
+        <td>${formatDateForPrint(item.date) || ''}</td>
         <td>${item.type === 'oil' ? '🛢️ تغيير زيت' : '🔧 إصلاح/صيانة'}</td>
         <td>${item.note || '---'}</td>
         <td>${Number(item.cost || 0).toLocaleString()}</td>

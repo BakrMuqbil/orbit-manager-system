@@ -158,6 +158,33 @@ const totalRentPaid = ledger
         return { icon: '', label: type, badgeClass: '' };
     }
   };
+  // التحقق من صحة قراءة العداد قبل حفظ الإيجار اليومي
+  const validateMeterReading = (entryType, currentMeter) => {
+  // فقط لعمليات الإيجار (نوع rent) نحتاج للتحقق
+  if (entryType !== 'rent') return { valid: true };
+
+  // الحصول على آخر قراءة مسجلة للعداد
+  const lastMeter = Number(ledger[0]?.currentMeter || driver?.initialMeter || 0);
+
+  // 1. التحقق من أن العداد الجديد أكبر أو يساوي آخر قراءة
+  if (currentMeter < lastMeter) {
+    return {
+      valid: false,
+      message: `رقم العداد الذي أدخلته (${currentMeter} كم) غير صحيح، وهو أقل من آخر قراءة مسجلة (${lastMeter} كم).`
+    };
+  }
+
+  // 2. التحقق من أن المسافة المقطوعة منذ آخر تغيير زيت لا تتجاوز الحد المسموح (2000 كم)
+  const distanceSinceLastOil = oilCounterVal + (currentMeter - lastMeter);
+  if (distanceSinceLastOil > oilInterval) {
+    return {
+      valid: false,
+      message: `المسافة المقطوعة للعداد الذي أدخلته ستتجاوز ${oilInterval} كم (الحد المسموح لتغيير الزيت). يرجى إنشاء سجل جديد لتغيير الزيت أولاً ثم متابعة تسجيل الإيجار.`
+    };
+  }
+
+  return { valid: true };
+};
 
   const handleAddEntry = async (e) => {
     if (e) e.preventDefault();
@@ -166,6 +193,17 @@ const totalRentPaid = ledger
       const currentBusId = driver?.busId || driver?.bus_id;
       const entryType = newEntry.type || "rent";
       let amount = Number(newEntry.paidAmount || 0);
+      
+     const currentMeter = Number(newEntry.currentMeter || 0);
+
+  // ✅ التحقق من صحة العداد (فقط للإيجار)
+    if (entryType === 'rent') {
+    const validation = validateMeterReading(entryType, currentMeter);
+    if (!validation.valid) {
+      alert(validation.message);
+      return; // منع الحفظ
+    }
+  }
       const dataToSave = {
         driverId: driverId,
         busId: currentBusId,
@@ -310,8 +348,8 @@ const exportPDF = () => {
         <div className="stat-box">
           <span>المسافة المقطوعة</span>
           <h2 className={oilColorClass}>
-            {oilCounterVal <= oilInterval ? `${oilCounterVal} كم` : `تجاوز ${oilCounterVal - oilInterval} كم`}
-          </h2>
+  {oilCounterVal > oilInterval ? `⚠️ تحذير تجاوز ${oilCounterVal} كم` : `${oilCounterVal} كم`}
+</h2>
         </div>
        
         

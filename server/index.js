@@ -303,12 +303,12 @@ app.get('/api/buses', authMiddleware, checkCompanySubscription, async (req, res)
 });
 
 app.post('/api/buses', authMiddleware, checkCompanySubscription, async (req, res) => {
-  const { busNumber, initialMeter, dailyRent } = req.body;
+  const { busNumber,owner_name, initialMeter, dailyRent } = req.body;
   const { company_id } = req.user;
   try {
     const result = await db.query(
-      'INSERT INTO buses ("busNumber", "initialMeter", "dailyRent", company_id) VALUES ($1,$2,$3,$4) RETURNING *',
-      [busNumber, initialMeter, dailyRent, company_id]
+      'INSERT INTO buses ("busNumber", "owner_name","initialMeter", "dailyRent", company_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [busNumber,owner_name , initialMeter, dailyRent, company_id]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -318,13 +318,13 @@ app.post('/api/buses', authMiddleware, checkCompanySubscription, async (req, res
 
 app.put('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
-  const { busNumber, initialMeter, dailyRent } = req.body;
+  const { busNumber, owner_name, initialMeter, dailyRent } = req.body;
   const { company_id, role } = req.user;
   try {
-    const filter = role === 'super_admin' ? '' : 'AND company_id = $5';
-    const params = role === 'super_admin' ? [busNumber, initialMeter, dailyRent, id] : [busNumber, initialMeter, dailyRent, id, company_id];
+    const filter = role === 'super_admin' ? '' : 'AND company_id = $6';
+    const params = role === 'super_admin' ? [busNumber,owner_name, initialMeter, dailyRent, id] : [busNumber,owner_name, initialMeter, dailyRent, id, company_id];
     
-    const result = await db.query(`UPDATE buses SET "busNumber"=$1, "initialMeter"=$2, "dailyRent"=$3 WHERE id=$4 ${filter} RETURNING *`, params);
+    const result = await db.query(`UPDATE buses SET "busNumber"=$1, "owner_name"=$2, "initialMeter"=$3, "dailyRent"=$4 WHERE id=$5 ${filter} RETURNING *`, params);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).send('خطأ في تعديل الباص');

@@ -12,7 +12,7 @@ const BusManager = () => {
     const [showModal, setShowModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [editingBusId, setEditingBusId] = useState(null);
-    const [newBus, setNewBus] = useState({ busNumber: '', initialMeter: '', dailyRent: '', status: 'في الخدمة' });
+    const [newBus, setNewBus] = useState({ busNumber: '',owner_name: '', initialMeter: '', dailyRent: '', status: 'في الخدمة' });
 
     const loadBuses = async () => {
       setLoading(true); 
@@ -101,6 +101,9 @@ const BusManager = () => {
         <div className="card-body">
             <h3>باص رقم: #{bus.busNumber}</h3>
             <div className="sub-info">
+                <span>اسم المالك: {bus.owner_name} 
+                </span>
+                
                 <span>الميتار: {bus.initialMeter} كم</span>
                 <span>الإيجار: {Number(bus.dailyRent).toLocaleString()} ريال</span>
             </div>

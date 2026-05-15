@@ -2,6 +2,7 @@ export const globalFormSchema = {
     // 1. مخطط الباصات (مطابق لـ BusManager.jsx)
     bus: [
         { name: 'busNumber', label: 'رقم الباص', type: 'text', required: true },
+         { name: 'owner_name', label: 'اسم المالك', type: 'text' },
         { name: 'initialMeter', label: 'عداد الميتار الحالي', type: 'number', required: true },
         { name: 'dailyRent', label: 'قيمة الإيجار اليومي', type: 'number', required: true }
     ],
