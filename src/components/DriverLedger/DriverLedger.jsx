@@ -124,7 +124,7 @@ const DriverLedger = () => {
   
   // حساب إجمالي المدفوع للإيجار
 const totalRentPaid = ledger
-  .filter(entry => entry.type === 'rent')
+  .filter(entry => entry.type === 'rent' || entry.type === 'payment')
   .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
 
   // حساب المسافة المجمعة للزيت
@@ -286,7 +286,7 @@ const exportPDF = () => {
     return;
   }
   const totalRentPaid = ledger
-    .filter(entry => entry.type === 'rent')
+    .filter(entry => entry.type === 'rent' || entry.type === 'payment')
     .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
   const totalDebt = Number(ledger[0]?.cumulativeBalance || driver?.opening_balance || 0);
   printDriverLedgerPDF(driver, ledger, totalRentPaid, totalDebt);
