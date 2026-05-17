@@ -37,7 +37,20 @@ const DriverLedger = () => {
   // state للزيت
   const [oilCounterVal, setOilCounterVal] = useState(0);
   const [oilInterval, setOilInterval] = useState(2000);
-
+// جلب آخر تاريخ لتغيير زيت الباص المرتبط بالسائق
+const fetchLastOilChangeDate = async (busId) => {
+  if (!busId) return null;
+  try {
+    const oilChanges = await smartGet("oil_changes", `busId=${busId}`);
+    if (oilChanges && oilChanges.length > 0) {
+      const sorted = oilChanges.sort((a, b) => new Date(b.changedate) - new Date(a.changedate));
+      return new Date(sorted[0].changedate);
+    }
+  } catch (err) {
+    console.error("خطأ في جلب تغييرات الزيت:", err);
+  }
+  return null;
+};
   // جلب البيانات
   useEffect(() => {
     fetchData();
@@ -58,69 +71,80 @@ const DriverLedger = () => {
   }, [isNewLedgerEntry, selectedDriver]);
 
   const fetchData = async () => {
-    try {
-      setLoading(true);
-      const drivers = await smartGet("driversData");
-      const currentDriver = drivers.find(
-        (d) => d.id.toString() === driverId.toString()
-      );
-      if (!currentDriver) {
-        console.warn("لم يتم العثور على بيانات السائق");
-        setLoading(false);
-        return;
-      }
-      setDriver(currentDriver);
-      setSelectedDriver(currentDriver);
-
-      const ledgerData = await smartGet("ledger", `driverId=${driverId}`);
-      const sortedLedger = [...ledgerData].sort((a, b) => {
-        const dateA = new Date(a.date).getTime() || 0;
-        const dateB = new Date(b.date).getTime() || 0;
-        return dateA - dateB;
-      });
-
-      let previousMeter = Number(currentDriver?.initialMeter || 0);
-      let runningBalance = Number(currentDriver?.opening_balance || 0);
-
-      const processedData = sortedLedger.map((entry) => {
-        const currentMeter = Number(entry.currentMeter || 0);
-        const paidAmount = Number(entry.paidAmount || 0);
-        const rentAmount = (entry.type === 'debt' || entry.type === 'payment')
-          ? 0
-          : Number(currentDriver?.dailyRent || 0);
-
-        let distance = 0;
-        if (entry.type !== 'debt' && entry.type !== 'payment') {
-          distance = currentMeter > previousMeter ? currentMeter - previousMeter : 0;
-          previousMeter = currentMeter;
-        }
-
-        if (entry.type === 'debt') {
-          runningBalance += paidAmount;
-        } else if (entry.type === 'payment') {
-          runningBalance -= paidAmount;
-        } else {
-          runningBalance += (rentAmount - paidAmount);
-        }
-
-        return {
-          ...entry,
-          currentMeter,
-          initialMeter: Number(currentDriver?.initialMeter || 0),
-          dailyRent: rentAmount,
-          paidAmount,
-          distance,
-          cumulativeBalance: runningBalance
-        };
-      });
-
-      setLedger(processedData.reverse());
+  try {
+    setLoading(true);
+    const drivers = await smartGet("driversData");
+    const currentDriver = drivers.find(d => d.id.toString() === driverId.toString());
+    if (!currentDriver) {
+      console.warn("لم يتم العثور على بيانات السائق");
       setLoading(false);
-    } catch (err) {
-      console.error("خطأ في جلب بيانات السجل:", err);
-      setLoading(false);
+      return;
     }
-  };
+    setDriver(currentDriver);
+    setSelectedDriver(currentDriver);
+
+    const ledgerData = await smartGet("ledger", `driverId=${driverId}`);
+    const sortedLedger = [...ledgerData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let previousMeter = Number(currentDriver?.initialMeter || 0);
+    let runningBalance = Number(currentDriver?.opening_balance || 0);
+    const processedData = [];
+
+    // جلب آخر تاريخ تغيير زيت للباص
+    const lastOilDate = await fetchLastOilChangeDate(currentDriver.busId);
+    let totalDistanceSinceOil = 0;
+    let lastOilMeter = previousMeter;
+
+    if (lastOilDate) {
+      // نبحث عن قراءة العداد عند آخر تغيير زيت (أقرب سجل بعد أو في نفس التاريخ)
+      const oilChangeLedger = sortedLedger.find(entry => new Date(entry.date) >= lastOilDate);
+      if (oilChangeLedger) lastOilMeter = Number(oilChangeLedger.currentMeter);
+      previousMeter = lastOilMeter;
+    }
+
+    for (const entry of sortedLedger) {
+      const currentMeter = Number(entry.currentMeter || 0);
+      const paidAmount = Number(entry.paidAmount || 0);
+      const rentAmount = (entry.type === 'debt' || entry.type === 'payment') ? 0 : Number(currentDriver?.dailyRent || 0);
+
+      let distance = 0;
+      if (entry.type !== 'debt' && entry.type !== 'payment') {
+        distance = currentMeter > previousMeter ? currentMeter - previousMeter : 0;
+        previousMeter = currentMeter;
+      }
+
+      // حساب المسافة المقطوعة منذ آخر تغيير زيت فقط
+      if (entry.type !== 'debt' && entry.type !== 'payment') {
+        if (lastOilDate && new Date(entry.date) >= lastOilDate) {
+          totalDistanceSinceOil += distance;
+        } else if (!lastOilDate) {
+          totalDistanceSinceOil += distance;
+        }
+      }
+
+      if (entry.type === 'debt') runningBalance += paidAmount;
+      else if (entry.type === 'payment') runningBalance -= paidAmount;
+      else runningBalance += (rentAmount - paidAmount);
+
+      processedData.push({
+        ...entry,
+        currentMeter,
+        initialMeter: Number(currentDriver?.initialMeter || 0),
+        dailyRent: rentAmount,
+        paidAmount,
+        distance,
+        cumulativeBalance: runningBalance
+      });
+    }
+
+    setLedger(processedData.reverse());
+    setOilCounterVal(totalDistanceSinceOil); // تعيين المسافة منذ آخر تغيير زيت
+    setLoading(false);
+  } catch (err) {
+    console.error("خطأ في جلب بيانات السجل:", err);
+    setLoading(false);
+  }
+};
   
   // حساب إجمالي المدفوع للإيجار
 const totalRentPaid = ledger
@@ -128,12 +152,7 @@ const totalRentPaid = ledger
   .reduce((sum, entry) => sum + Number(entry.paidAmount || 0), 0);
 
   // حساب المسافة المجمعة للزيت
-  useEffect(() => {
-    if (ledger.length > 0) {
-      let totalDistance = ledger.reduce((sum, entry) => sum + Number(entry.distance || 0), 0);
-      setOilCounterVal(totalDistance);
-    }
-  }, [ledger]);
+  
 
   const oilColorClass = oilCounterVal <= oilInterval ? "text-success" : "text-danger";
 
