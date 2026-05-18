@@ -33,14 +33,11 @@
   display: flex;
   direction: ltr;
 }
-/*.header-left { justify-content: flex-start; }*/
 .header-center { 
   flex: 2;
   text-align: center;
 } 
-/*
-.header-right { justify-content: flex-end; }
-*/
+
 .back-link {
   background: none;
   border: none;
@@ -48,47 +45,10 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 16px;
-}/*
-.ledger-header-card h1 {
-  margin: 0;
-  font-size: 22px;
-  color: #ffffff;
 }
-.ledger-header-card h3 {
-  color: #a3edfd;
-  margin: 0;
-  font-size: 16px;
-}
-*/
+
 /* قسم الإحصائيات */
-.summary-section {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 30px;
-}
-.stat-box {
-  background: #111c44;
-  padding: 20px;
-  border-radius: 15px;
-  flex: 1;
-  border: 1px solid #1b254b;
-  transition: transform 0.2s, border-color 0.2s;
-  cursor: pointer;
-}
-.stat-box:hover {
-  transform: translateY(-2px);
-}
-.stat-box span {
-  font-size: 13px;
-  color: #707eae;
-  display: block;
-  margin-bottom: 8px;
-}
-.stat-box h2 {
-  margin: 0;
-  font-size: 24px;
-  color: #ffffff;
-}
+
 .text-danger {
   color: #ff5252 !important;
 }
@@ -96,86 +56,8 @@
   color: #00e676 !important;
 }
 
-/* التبويبات */
-.tabs-container {
-  display: flex;
-  margin-bottom: 20px;
-  justify-content: space-between;
-}
-.tabs-section  {
-  display: flex;
-  gap: 10px;
-  
 
-}
-.tabs-section button {
-  background: #1b254b;
-  color: #a3edfd;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: 0.3s;
-}
-.tabs-container button:hover {
-  background: #252f5a;
-}
-.tabs-container button.active-tab {
-  background: #4318ff;
-  color: white;
-  box-shadow: 0 4px 15px rgba(67, 24, 255, 0.3);
-}
 
-/* أزرار الإجراءات */
-.actions-bar {
-  display: flex;
-  gap: 12px;
-  margin-right: 50px;
-}
-.export-btn, .action-btn {
-  background: #1b254b;
-  color: #a3edfd;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: 0.3s;
-}
-.action-btn.add-rent { background: #4318ff; color: #fff; }
-
-.export-btn:hover, .action-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-
-/* الجدول */
-.table-wrapper {
-  background: #111c44;
-  border-radius: 20px;
-  overflow-x: auto;
-  border: 1px solid #1b254b;
-}
-.ledger-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 1000px;
-}
-.ledger-table th {
-  background: #1b254b;
-  padding: 18px;
-  text-align: right;
-  font-size: 14px;
-  color: #a3edfd;
-  white-space: nowrap;
-}
-.ledger-table td {
-  padding: 18px;
-  border-bottom: 1px solid #1b254b;
-  font-size: 15px;
-  color: #ffffff;
-}
-.ledger-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
 
 /* شارات المعاملات */
 .transaction-badge {

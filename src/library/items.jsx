@@ -1,32 +1,33 @@
 import React, { useState } from 'react';
 import styles from './items.module.css';
+import { useNavigate } from 'react-router-dom';
 
 // 1. Cloud Loader (النسخة النهائية المصغرة مع نص متحرك)
 export const CloudLoader = ({ message = "Loading", customClass = "", style = {} }) => {
   return (
-      <div className={`${styles.loaderWrapper} ${customClass}`} style={style}>
+    <div className={`${styles.loaderWrapper} ${customClass}`} style={style}>
       <div className={styles.loaderContent}>
-      
-      
-        <svg 
-          className={styles.svgGlobal} 
-          viewBox="0 0 94 136" 
-          height="80" 
-          width="60" 
-          fill="none" 
+
+
+        <svg
+          className={styles.svgGlobal}
+          viewBox="0 0 94 136"
+          height="80"
+          width="60"
+          fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path 
-            className={styles.lineV1} 
-            d="M87.3629 108.433L49.1073 85.3765C47.846 84.6163 45.8009 84.6163 44.5395 85.3765L6.28392 108.433C5.02255 109.194 5.02255 110.426 6.28392 111.187L44.5395 134.243C45.8009 135.004 47.846 135.004 49.1073 134.243L87.3629 111.187C88.6243 110.426 88.6243 109.194 87.3629 108.433Z" 
-            stroke="#4B22B5" 
+          <path
+            className={styles.lineV1}
+            d="M87.3629 108.433L49.1073 85.3765C47.846 84.6163 45.8009 84.6163 44.5395 85.3765L6.28392 108.433C5.02255 109.194 5.02255 110.426 6.28392 111.187L44.5395 134.243C45.8009 135.004 47.846 135.004 49.1073 134.243L87.3629 111.187C88.6243 110.426 88.6243 109.194 87.3629 108.433Z"
+            stroke="#4B22B5"
           />
-          <path 
-            className={styles.lineV2} 
-            d="M91.0928 95.699L49.2899 70.5042C47.9116 69.6734 45.6769 69.6734 44.2986 70.5042L2.49568 95.699C1.11735 96.5298 1.11735 97.8767 2.49568 98.7074L44.2986 123.902C45.6769 124.733 47.9116 124.733 49.2899 123.902L91.0928 98.7074C92.4712 97.8767 92.4712 96.5298 91.0928 95.699Z" 
-            stroke="#5728CC" 
+          <path
+            className={styles.lineV2}
+            d="M91.0928 95.699L49.2899 70.5042C47.9116 69.6734 45.6769 69.6734 44.2986 70.5042L2.49568 95.699C1.11735 96.5298 1.11735 97.8767 2.49568 98.7074L44.2986 123.902C45.6769 124.733 47.9116 124.733 49.2899 123.902L91.0928 98.7074C92.4712 97.8767 92.4712 96.5298 91.0928 95.699Z"
+            stroke="#5728CC"
           />
-          
+
           <g className={styles.nodeServer}>
             <path d="M2.48637 72.0059L43.8699 96.9428C45.742 98.0709 48.281 97.8084 50.9284 96.2133L91.4607 71.7833C92.1444 71.2621 92.4197 70.9139 92.5421 70.1257V86.1368C92.5421 86.9686 92.0025 87.9681 91.3123 88.3825C84.502 92.4724 51.6503 112.204 50.0363 113.215C48.2352 114.343 45.3534 114.343 43.5523 113.215C41.9261 112.197 8.55699 91.8662 2.08967 87.926C1.39197 87.5011 1.00946 86.5986 1.00946 85.4058V70.1257C1.11219 70.9289 1.49685 71.3298 2.48637 72.0059Z" fill="url(#paint0_linear)" />
             <path d="M91.0928 68.7324L49.2899 43.5375C47.9116 42.7068 45.6769 42.7068 44.2986 43.5375L2.49568 68.7324C1.11735 69.5631 1.11735 70.91 2.49568 71.7407L44.2986 96.9356C45.6769 97.7663 47.9116 97.7663 49.2899 96.9356L91.0928 71.7407C92.4712 70.91 92.4712 69.5631 91.0928 68.7324Z" fill="url(#paint1_linear)" stroke="url(#paint2_linear)" />
@@ -83,7 +84,6 @@ export const CloudLoader = ({ message = "Loading", customClass = "", style = {} 
     </div>
   );
 };
-
 // Droplist و Calendar تبقى كما هي بالأسفل
 export const Droplist = ({ options = ["Concept 1", "Concept 2", "Concept 3"] }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -117,7 +117,6 @@ export const Calendar = () => {
     </div>
   );
 };
-
 // 4. Empty Framed Card (المكون الجديد)
 export const EmptyFramedCard = ({ children }) => {
   return (
@@ -133,8 +132,204 @@ export const getSubscriptionStatus = (expiryDate) => {
   const today = new Date();
   const expiry = new Date(expiryDate);
   const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays < 0) return { text: 'منتهي', color: '#ff4d4d', bg: 'rgba(255, 77, 77, 0.1)' };
   if (diffDays <= 7) return { text: `ينتهي خلال ${diffDays} يوم`, color: '#ffab00', bg: 'rgba(255, 171, 0, 0.1)' };
   return { text: `نشط`, color: '#48bb78', bg: 'rgba(72, 187, 120, 0.1)' };
+};
+
+export const PageHeader = ({
+  backPath,
+  title,
+  rightContent,
+  onBackClick,
+  backButtonText = '← العودة' 
+}) => {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (onBackClick) {
+      onBackClick();
+    } else if (backPath) {
+      navigate(backPath);
+    } else {
+      console.warn('PageHeader: لم يتم تحديد مسار العودة أو دالة مخصصة');
+    }
+  };
+
+  return (
+    <header className={styles.ledgerHeaderCard}>
+      <div className={styles.headerLeft}>
+        <button className={styles.backLink} onClick={handleBack}>
+          {backButtonText}
+        </button>
+      </div>
+      <div className={styles.headerCenter}>
+        <h1>{title}</h1>
+      </div>
+      <div className={styles.headerRight}>
+        {rightContent}
+      </div>
+    </header>
+  );
+};
+
+
+
+/**
+ * مكون لعرض بطاقات الإحصائيات (Stats Cards)
+ * @param {Array} cards - مصفوفة من البطاقات، كل بطاقة تحتوي على:
+ *   - key: معرف فريد (يمكن أن يكون index أو id)
+ *   - label: النص العلوي (مثل 'إجمالي المنصرفات')
+ *   - value: القيمة المعروضة (ستُحول إلى string)
+ *   - valueClass: كلاس CSS إضافي للنص (مثل styles.textDanger, styles.textSuccess) - اختياري
+ *   - valueStyle: كائن style إضافي للنص (مثل { color: '#00b8d8' }) - اختياري
+ *   - onClick: دالة عند النقر على البطاقة - اختياري
+ *   - activeBorder: (boolean) إذا كانت true يظهر border أزرق - اختياري
+ */
+export const StatsCards = ({ cards }) => {
+  return (
+    <div className={styles.summarySection}>
+      {cards.map((card) => (
+        <div
+          key={card.key}
+          className={styles.statBox}
+          onClick={card.onClick}
+          style={{
+            cursor: card.onClick ? 'pointer' : 'default',
+            border: card.activeBorder ? '1px solid #4318ff' : '1px solid #1b254b',
+          }}
+        >
+          <span>{card.label}</span>
+          <h2 className={card.valueClass} style={card.valueStyle}>
+            {card.value}
+          </h2>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ===== مكون التبويبات (Tabs) =====
+export const TabsSection = ({ tabs, activeTab, onTabClick }) => {
+  return (
+    <div className={styles.tabsSection}>
+      {tabs.map((tab) => {
+        const isActive = activeTab !== undefined ? activeTab === tab.key : tab.active;
+        return (
+          <button
+            key={tab.key}
+            className={isActive ? styles.activeTab : ''}
+            onClick={() => {
+              if (onTabClick) onTabClick(tab.key);
+              else if (tab.onClick) tab.onClick(tab.key);
+            }}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ===== مكون أزرار الإجراءات (ActionBar) =====
+
+export const ActionBar = ({ actions }) => {
+  return (
+    <div className={styles.actionsBar}>
+      {actions.map((action) => (
+        <button
+          key={action.key}
+          className={`${styles.actionBtn} ${action.className ? styles[action.className] : ''}`}
+          onClick={action.onClick}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ===== مكون يجمع TabsSection و ActionBar في سطر واحد =====
+/**
+ * TabsWithActions - يجمع التبويبات وأزرار الإجراءات في سطر واحد (مثل الأصل)
+ * @param {Object} props
+ * @param {Array} props.tabs - مصفوفة التبويبات (نفس TabsSection)
+ * @param {string} props.activeTab - التبويب النشط
+ * @param {function} props.onTabClick - دالة عند تغيير التبويب
+ * @param {Array} props.actions - مصفوفة الأزرار (نفس ActionBar)
+ */
+export const TabsWithActions = ({ tabs, activeTab, onTabClick, actions }) => {
+  return (
+    <div className={styles.tabsContainer}>
+      <TabsSection tabs={tabs} activeTab={activeTab} onTabClick={onTabClick} />
+      <ActionBar actions={actions} />
+    </div>
+  );
+};
+
+export const DataTable = ({ 
+  columns, 
+  data, 
+  emptyMessage = "لا توجد سجلات", 
+  renderActions, 
+  rowKey = 'id' 
+}) => {
+  // حالة عدم وجود بيانات
+  if (!data || data.length === 0) {
+    const colSpan = columns.length + (renderActions ? 1 : 0);
+    return (
+      <div className={styles.tableWrapper}>
+        <table className={styles.ledgerTable}>
+          <thead>
+            <tr>
+              {columns.map(col => (
+                <th key={col.key}>{col.label}</th>
+              ))}
+              {renderActions && <th>إجراء</th>}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={colSpan} style={{ textAlign: 'center', padding: '30px' }}>
+                {emptyMessage}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.tableWrapper}>
+      <table className={styles.ledgerTable}>
+        <thead>
+          <tr>
+            {columns.map(col => (
+              <th key={col.key}>{col.label}</th>
+            ))}
+            {renderActions && <th>إجراء</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, idx) => (
+            <tr key={row[rowKey] || idx}>
+              {columns.map(col => (
+                <td key={col.key}>
+                  {col.render ? col.render(row, idx) : (row[col.key] ?? '---')}
+                </td>
+              ))}
+              {renderActions && (
+                <td>
+                  {renderActions(row, idx)}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 };

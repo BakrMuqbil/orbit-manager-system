@@ -5,7 +5,7 @@ import { autoTable } from 'jspdf-autotable';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService';
 import './DriverLedger.css';
 import UniversalModal from '../UniversalModal';
-import { CloudLoader } from '../../library/items.jsx';
+import { CloudLoader, PageHeader, StatsCards ,TabsWithActions, DataTable} from '../../library/items.jsx';
 import { printDriverLedgerPDF } from '../../utils/pdfGenerator';
 
 const DriverLedger = () => {
@@ -33,6 +33,51 @@ const DriverLedger = () => {
     type: "rent",
     note: ""
   });
+  
+  
+
+// تعريف الأعمدة
+const ledgerColumns = [
+  { key: 'date', label: 'التاريخ', render: (row) => formatDate(row.date) },
+  { 
+    key: 'type', 
+    label: 'النوع', 
+    render: (row) => {
+      const { icon, label, badgeClass } = getTransactionDetails(row.type);
+      return <span className={`transaction-badge ${badgeClass}`}>{icon} {label}</span>;
+    }
+  },
+  { key: 'note', label: 'البيان / الملاحظة', render: (row) => row.note || '---' },
+  { key: 'currentMeter', label: 'الميتار' },
+  { 
+    key: 'distance', 
+    label: 'المسافة (كم)', 
+    render: (row) => (
+      <span className={row.distance > 200 ? "balance-debt" : "balance-ok"}>
+        {row.distance} كم
+      </span>
+    )
+  },
+  { 
+    key: 'dailyRent', 
+    label: 'الإيجار', 
+    render: (row) => `${Number(row.dailyRent || 0).toLocaleString()} ريال`
+  },
+  { 
+    key: 'paidAmount', 
+    label: 'المدفوع', 
+    render: (row) => <span className="paid-val">{Number(row.paidAmount || 0).toLocaleString()} ريال</span>
+  },
+  { 
+    key: 'netDay', 
+    label: 'صافي اليوم', 
+    render: (row) => {
+      const net = Number(row.dailyRent || 0) - Number(row.paidAmount || 0);
+      return <span className={net > 0 ? "balance-debt" : "balance-ok"}>{net.toLocaleString()} ريال</span>;
+    }
+  }
+];
+
 
   // state للزيت
   const [oilCounterVal, setOilCounterVal] = useState(0);
@@ -76,7 +121,7 @@ const fetchLastOilChangeDate = async (busId) => {
     const drivers = await smartGet("driversData");
     const currentDriver = drivers.find(d => d.id.toString() === driverId.toString());
      
-    console.log(currentDriver)
+    
     if (!currentDriver) {
       console.warn("لم يتم العثور على بيانات السائق");
       setLoading(false);
@@ -321,143 +366,109 @@ const exportPDF = () => {
 
   return (
     <div className="ledger-page" >
-    
-      <header className="ledger-header-card">
-      
-        <div className="header-left">
-          <button className="back-link" onClick={() => navigate('/home/drivers')}>← العودة</button>
-        </div>
-        
-        <div className="header-center">
-          <h1>سجل الحساب اليومي</h1>
-        </div>
-        
-        <div className="header-right">
-        <ul>
-        <li> الاسم : {driver.name}
-        </li>
-        <li> رقم الباص 
-        : {driver.busNumber}
-        </li>
-        <li> رقم الهاتف : {driver.phone}
-        </li>
-        </ul>
-          
-        </div>
-        
-      </header>
+<PageHeader
+  backPath="/home/drivers"
+  title="سجل الحساب اليومي"
+  rightContent={
+    <ul>
+      <li>الاسم: {driver.name}</li>
+      <li>رقم الباص: {driver.busNumber}</li>
+      <li>رقم الهاتف: {driver.phone}</li>
+    </ul>
+  }
+/>
 
       {/* قسم الإحصائيات */}
-      <div className="summary-section">
-      
-        <div className="stat-box" onClick={() => setActiveTab('debt_payment')} style={{ cursor: 'pointer', border: activeTab === 'debt_payment' ? '1px solid #4318ff' : '' }}>
-          <span>المديونية الكلية</span>
-          <h2 className="text-danger">
-            {Number(ledger[0]?.cumulativeBalance || driver?.opening_balance || 0).toLocaleString()} ريال
-          </h2>
-        </div>
-        <div className="stat-box" onClick={() => setActiveTab('rent')} style={{ cursor: 'pointer', border: activeTab === 'rent' ? '1px solid #00b8d8' : '' }}>
-  <span>إجمالي المدفوع للإيجار</span>
-  <h2 className="text-success">
-    {totalRentPaid.toLocaleString()} ريال
-  </h2>
-</div>
-        <div className="stat-box" >
-          <span>آخر ميتار</span>
-          <h2>{ledger[0]?.currentMeter || driver.initialMeter}</h2>
-        </div>
-        
-        <div className="stat-box">
-          <span>المسافة المقطوعة</span>
-          <h2 className={oilColorClass}>
-  {oilCounterVal > oilInterval ? `⚠️ تحذير تجاوز ${oilCounterVal} كم` : `${oilCounterVal} كم`}
-</h2>
-        </div>
-       
-        
-      </div>
+<StatsCards cards={[
+  {
+    key: 'debt',
+    label: 'المديونية الكلية',
+    value: `${Number(ledger[0]?.cumulativeBalance || driver?.opening_balance || 0).toLocaleString()} ريال`,
+    valueClass: 'text-danger',
+    onClick: () => setActiveTab('debt_payment'),
+    activeBorder: activeTab === 'debt_payment',
+  },
+  {
+    key: 'totalPaid',
+    label: 'إجمالي المدفوع للإيجار',
+    value: `${totalRentPaid.toLocaleString()} ريال`,
+    valueClass: 'text-success',
+    onClick: () => setActiveTab('rent'),
+    activeBorder: activeTab === 'rent',
+  },
+  {
+    key: 'lastMeter',
+    label: 'آخر ميتار',
+    value: `${ledger[0]?.currentMeter || driver.initialMeter}`,
+    // بدون onClick (لأنه في النص الأصلي لم يكن له حدث)
+    activeBorder: false,
+  },
+  {
+    key: 'distance',
+    label: 'المسافة المقطوعة',
+    value: oilCounterVal > oilInterval ? `⚠️ تحذير تجاوز ${oilCounterVal} كم` : `${oilCounterVal} كم`,
+    valueClass: oilCounterVal > oilInterval ? 'text-danger' : 'text-success',
+    // بدون onClick
+  },
+]} />
 
       {/* أزرار التبويبات */}
-      <div className="tabs-container" >
-      <div className="tabs-section" >
-        <button className={activeTab === 'all' ? 'active-tab' : ''} onClick={() => setActiveTab('all')}>
-           الكل
-        </button>
-        <button className={activeTab === 'rent' ? 'active-tab' : ''} onClick={() => setActiveTab('rent')}>
-           الإيجار
-        </button>
-        <button className={activeTab === 'debt_payment' ? 'active-tab' : ''} onClick={() => setActiveTab('debt_payment')}>
-          ديون وسداد
-        </button>
-        </div>
-        <div className="actions-bar">
-        <button className="export-btn" onClick={exportPDF}>📤 تصدير PDF</button>
-         <button className="action-btn add-debt" onClick={() => {
-          setActiveSchema("debt_entry");
-          setNewEntry({ ...newEntry, type: 'debt', paidAmount: '' });
-          setShowModal(true);
-        }}> إضافة دين</button>
-         <button className="action-btn add-payment" onClick={() => {
-          setActiveSchema("payment_entry");
-          setNewEntry({ ...newEntry, type: 'payment', paidAmount: '' });
-          setShowModal(true);
-        }}> سداد مديونية</button>
-         <button className="action-btn add-rent" onClick={() => {
-          setActiveSchema("ledger_entry");
-          setIsNewLedgerEntry(true);
-          setShowModal(true);
-        }}> إيجار يومي</button>
-      </div>
-        
-      </div>
+<TabsWithActions
+  tabs={[
+    { key: 'all', label: 'الكل' },
+    { key: 'rent', label: 'الإيجار' },
+    { key: 'debt_payment', label: 'ديون وسداد' }
+  ]}
+  activeTab={activeTab}
+  onTabClick={(tabKey) => setActiveTab(tabKey)}
+  actions={[
+    { key: 'export', label: '📤 تصدير PDF', onClick: exportPDF, className: 'export' },
+    { 
+      key: 'debt', 
+      label: 'إضافة دين', 
+      onClick: () => {
+        setActiveSchema("debt_entry");
+        setNewEntry({ ...newEntry, type: 'debt', paidAmount: '' });
+        setShowModal(true);
+      }, 
+      className: 'primary' 
+    },
+    { 
+      key: 'payment', 
+      label: 'سداد مديونية', 
+      onClick: () => {
+        setActiveSchema("payment_entry");
+        setNewEntry({ ...newEntry, type: 'payment', paidAmount: '' });
+        setShowModal(true);
+      }, 
+      className: 'primary' 
+    },
+    { 
+      key: 'rent', 
+      label: 'إيجار يومي', 
+      onClick: () => {
+        setActiveSchema("ledger_entry");
+        setIsNewLedgerEntry(true);
+        setShowModal(true);
+      }, 
+      className: 'primary' 
+    }
+  ]}
+/>
 
       {/* الجدول */}
-      <div className="table-wrapper">
-        <table className="ledger-table">
-          <thead>
-            <tr>
-              <th>التاريخ</th>
-              <th>النوع</th>
-              <th>البيان / الملاحظة</th>
-              <th>الميتار</th>
-              <th>المسافة (كم)</th>
-              <th>الإيجار</th>
-              <th>المدفوع</th>
-              <th>صافي اليوم</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
-          <tbody>
-            {getFilteredLedger().map((entry) => {
-              const { icon, label, badgeClass } = getTransactionDetails(entry.type);
-              const netDay = Number(entry.dailyRent || 0) - Number(entry.paidAmount || 0);
-              return (
-                <tr key={entry.id}>
-                  <td>{formatDate(entry.date)}</td>
-                  <td>
-                    <span className={`transaction-badge ${badgeClass}`}>
-                      {icon} {label}
-                    </span>
-                  </td>
-                  <td>{entry.note || '---'}</td>
-                  <td>{entry.currentMeter}</td>
-                  <td className={entry.distance > 200 ? "balance-debt" : "balance-ok"}>{entry.distance} كم</td>
-                  <td>{Number(entry.dailyRent || 0).toLocaleString()} ريال</td>
-                  <td className="paid-val">{Number(entry.paidAmount || 0).toLocaleString()} ريال</td>
-                  <td className={netDay > 0 ? "balance-debt" : "balance-ok"}>{netDay.toLocaleString()} ريال</td>
-                  <td>
-                    <button className="edit-cell" onClick={() => handleEditClick(entry)}>✏️</button>
-                    <button className="delete-cell" onClick={(e) => { e.stopPropagation(); deleteLedger(entry.id); }}>🗑️</button>
-                  </td>
-                </tr>
-              );
-            })}
-            {getFilteredLedger().length === 0 && (
-              <tr><td colSpan="9" style={{ textAlign: 'center', padding: '30px' }}>لا توجد سجلات في هذا القسم</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+     <DataTable
+  columns={ledgerColumns}
+  data={getFilteredLedger()}
+  emptyMessage="لا توجد سجلات في هذا القسم"
+  renderActions={(row) => (
+    <>
+      <button className="edit-cell" onClick={() => handleEditClick(row)}>✏️</button>
+      <button className="delete-cell" onClick={(e) => { e.stopPropagation(); deleteLedger(row.id); }}>🗑️</button>
+    </>
+  )}
+  rowKey="id"
+/>
 
       <UniversalModal
         isOpen={showModal}

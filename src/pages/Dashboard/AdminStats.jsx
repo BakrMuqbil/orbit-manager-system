@@ -74,7 +74,7 @@ const AdminStats = () => {
 
   const handleSave = async () => {
     try {
-      console.log(`Executing: ${activeTask}`, formData);
+      
       alert("تم تنفيذ العملية بنجاح");
       setShowModal(false);
       fetchAdminDashboard();

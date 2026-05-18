@@ -5,7 +5,7 @@ import { autoTable } from 'jspdf-autotable';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
 import styles from './BusLedger.module.css'; 
 import UniversalModal from '../UniversalModal'; 
-import { CloudLoader } from '../../library/items';
+import { CloudLoader, PageHeader, StatsCards ,TabsWithActions, DataTable} from '../../library/items';
 import { printBusLedgerPDF } from '../../utils/pdfGenerator';
 const BusLedger = () => {
   const { busId } = useParams();
@@ -27,7 +27,7 @@ const BusLedger = () => {
   const [isEditing, setIsEditing] = useState(false);
 const [currentEntryId, setCurrentEntryId] = useState(null);
 
-  const [newEntry, setNewEntry] = useState({
+const [newEntry, setNewEntry] = useState({
     busId: busId,
     driverId:'',
     date: new Date().toISOString().split("T")[0],
@@ -39,12 +39,47 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
     cost:"",
     note: ""
   });
+  
 
-  useEffect(() => {
+const busColumns = [
+  { key: 'date', label: 'التاريخ', render: (row) => formatDate(row.date) },
+  { 
+    key: 'type', 
+    label: 'النوع', 
+    render: (row) => (
+      <span className={`${styles.statusBadge} ${row.type === 'oil' ? styles.oilType : styles.repairType}`}>
+        {row.label}
+      </span>
+    )
+  },
+  { key: 'note', label: 'البيان/الملاحظة', render: (row) => row.note || '---' },
+  { 
+    key: 'cost', 
+    label: 'التكلفة', 
+    render: (row) => <span className={styles.textSuccess}>{Number(row.cost).toLocaleString()} ريال</span>
+  },
+  { 
+    key: 'meter', 
+    label: 'العداد', 
+    render: (row) => (
+      <>
+        <div style={{ fontWeight: '500' }}>{row.meter} كم</div>
+        {row.type === 'oil' && row.diff > 0 && (
+          <div style={{ fontSize: '0.85rem', color: '#00e676', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '12px' }}>↑</span>
+            <span>{row.diff} كم مقطوعة</span>
+          </div>
+        )}
+      </>
+    )
+  }
+];
+
+useEffect(() => {
     fetchBusData();
   }, [busId]);
   
-  const fetchBusData = async () => {
+const fetchBusData = async () => {
   try {
     setLoading(true);
 
@@ -145,6 +180,7 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
     setLoading(false);
   }
 };
+
 const handleSave = async (e) => {
   if (e) e.preventDefault();
   try {
@@ -189,7 +225,7 @@ const handleSave = async (e) => {
   }
 };
 
-  const handleEditClick = (entry) => {
+const handleEditClick = (entry) => {
   setIsEditing(true);
   setCurrentEntryId(entry.id);
   // تحديد نوع المودال بناءً على نوع السجل
@@ -206,8 +242,7 @@ const handleSave = async (e) => {
   setShowModal(true);
 };
 
-
-  const deleteLedger = async (entry) => {
+const deleteLedger = async (entry) => {
   const confirmMsg = entry.type === 'oil' 
     ? "هل أنت متأكد من حذف سجل تغيير الزيت؟ سيؤثر هذا على حساب المسافات." 
     : "هل أنت متأكد من حذف سجل الصيانة؟";
@@ -227,8 +262,7 @@ const handleSave = async (e) => {
   }
 };
 
-
-  const formatDate = (dateString) => {
+const formatDate = (dateString) => {
     if (!dateString) return "";
     const dateObj = new Date(dateString);
     const days = [
@@ -246,13 +280,6 @@ const handleSave = async (e) => {
     )}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
   };
 // دالة لطباعة تقرير مخصص حسب النوع (type)
-
-// استبدال دوال exportFilteredPDF (للزيت والصيانة)
-
-
-// في BusLedger.jsx
-
-
 const exportFullPDF = () => {
   if (fullHistory.length === 0) {
     alert("لا توجد سجلات للتصدير");
@@ -261,7 +288,6 @@ const exportFullPDF = () => {
   printBusLedgerPDF(bus, fullHistory, totalOil, totalRepair);
 };
 
-// يمكنك إضافة زر جديد "طباعة التقرير كامل" واستدعاء exportFullPDF
 const handleCloseModal = () => {
     // 1. إغلاق المودال برمجياً
     setShowModal(false);
@@ -284,7 +310,6 @@ const handleCloseModal = () => {
     // setModalType("quick_oil"); 
 };
 
-
   if (loading) return <div className={`${styles['loader-overlay']} ${loading ? styles.active : ''}`}>
   <CloudLoader />
 </div>
@@ -301,127 +326,81 @@ const handleCloseModal = () => {
 
   return (
     <div className={styles.ledgerPage} >
-    
-      <header className={styles.headerCard} >
-        <div className={styles.headerleft}>
-          <button className="back-link" onClick={() => navigate('/home/buses')}>← العودة</button>
-        </div>
-        
-        <div className={styles.headercenter}>
-          <h1>سجل صيانة الباصات</h1>
-        </div>
-         <div className={styles.headerright}>
-           <ul>
-  <li> المالك:- {bus?.owner_name || 'غير محدد'}</li>
-  <li> اسم السائق:- {driverName || 'غير مرتبط'}</li>
-  <li> رقم المركبة:- {bus?.busNumber}</li>
-</ul>
-        </div>
-        
-        
-      </header>
+<PageHeader
+  backPath="/home/buses"
+  title="سجل صيانة الباصات"
+  rightContent={
+    <ul className={styles.rightList}>
+      <li>المالك:- {bus?.owner_name || 'غير محدد'}</li>
+      <li>اسم السائق:- {driverName || 'غير مرتبط'}</li>
+      <li>رقم المركبة:- {bus?.busNumber}</li>
+    </ul>
+  }
+/>
 
       {/* قسم الملخص - Stats */}
-      <div className={styles.summarySection}>
-        <div className={styles.statBox} onClick={() => setActiveTab('all')} style={{cursor: 'pointer', border: activeTab === 'all' ? '1px solid #4318ff' : ''}}>
-          <span>إجمالي المنصرفات</span>
-          <h2 className={styles.textDanger}>{(totalOil + totalRepair).toLocaleString()} ريال</h2>
-        </div>
-        <div className={styles.statBox}>
-  <span>صافي الربح</span>
-  <h2 style={{ color: netProfit >= 0 ? '#00e676' : '#ff5252' }}>
-    {netProfit.toLocaleString()} ريال
-  </h2>
-</div>
-        <div className={styles.statBox} onClick={() => setActiveTab('oil')} style={{cursor: 'pointer', border: activeTab === 'oil' ? '1px solid #00b8d8' : ''}}>
-          <span>إجمالي الزيت</span>
-          <h2 style={{color: '#00b8d8'}}>{totalOil.toLocaleString()} ريال</h2>
-        </div>
-        <div className={styles.statBox} onClick={() => setActiveTab('repair')} style={{cursor: 'pointer', border: activeTab === 'repair' ? '1px solid #ffab00' : ''}}>
-          <span>إجمالي الصيانة</span>
-          <h2 style={{color: '#ffab00'}}>{totalRepair.toLocaleString()} ريال</h2>
-        </div>
-      </div>
-
-      {/* أزرار التحويل بين الجداول */}
-      <div className={styles.tabsContainer}>
-      
-       <div className={styles.tabssection} >
-        <button className={activeTab === 'all' ? styles.activeTab : ''} onClick={() => setActiveTab('all')}>السجل الشامل</button>
-        <button className={activeTab === 'oil' ? styles.activeTab : ''} onClick={() => setActiveTab('oil')}>سجل الزيت</button>
-        <button className={activeTab === 'repair' ? styles.activeTab : ''} onClick={() => setActiveTab('repair')}>سجل الصيانة</button>
-        </div>
-        
-        <div className={styles.headerActions}>
-        <button className="export-btn" onClick={() => exportFullPDF('repair')}>🔧  تصدير PDF</button>
-        <button className="export-btn" onClick={() => exportFullPDF('oil')}>🛢 تصدير PDF</button>
-           <button className={styles.actionBtn} style={{background: '#4318ff'}} onClick={() => { setModalType("quick_oil"); setShowModal(true); }}>🛢️ زيت جديد</button>
-           <button className={styles.actionBtn} style={{background: '#ffab00'}} onClick={() => { setModalType("quick_repair"); setShowModal(true); }}>🔧 صيانة جديدة</button>
-        </div>
-        
-      </div>
+<StatsCards cards={[
+  {
+    key: 'totalExpenses',
+    label: 'إجمالي المنصرفات',
+    value: `${(totalOil + totalRepair).toLocaleString()} ريال`,
+    valueClass: styles.textDanger,
+    onClick: () => setActiveTab('all'),
+    activeBorder: activeTab === 'all',
+  },
+  {
+    key: 'netProfit',
+    label: 'صافي الربح',
+    value: `${netProfit.toLocaleString()} ريال`,
+    valueStyle: { color: netProfit >= 0 ? '#00e676' : '#ff5252' },
+    // بدون onClick (في المثال الأصلي لم يكن له onClick)
+  },
+  {
+    key: 'totalOil',
+    label: 'إجمالي الزيت',
+    value: `${totalOil.toLocaleString()} ريال`,
+    valueStyle: { color: '#00b8d8' },
+    onClick: () => setActiveTab('oil'),
+    activeBorder: activeTab === 'oil',
+  },
+  {
+    key: 'totalRepair',
+    label: 'إجمالي الصيانة',
+    value: `${totalRepair.toLocaleString()} ريال`,
+    valueStyle: { color: '#ffab00' },
+    onClick: () => setActiveTab('repair'),
+    activeBorder: activeTab === 'repair',
+  },
+]} />
+<TabsWithActions
+  tabs={[
+    { key: 'all', label: 'السجل الشامل' },
+    { key: 'oil', label: 'سجل الزيت' },
+    { key: 'repair', label: 'سجل الصيانة' }
+  ]}
+  activeTab={activeTab}
+  onTabClick={(tabKey) => setActiveTab(tabKey)}
+  actions={[
+    { key: 'exportPdf', label: '🔧 تصدير PDF', onClick: () => exportFullPDF('repair'), className: 'export' },
+    { key: 'exportOilPdf', label: '🛢 تصدير PDF', onClick: () => exportFullPDF('oil'), className: 'export' },
+    { key: 'newOil', label: '🛢️ زيت جديد', onClick: () => { setModalType("quick_oil"); setShowModal(true); }, className: 'primary' },
+    { key: 'newRepair', label: '🔧 صيانة جديدة', onClick: () => { setModalType("quick_repair"); setShowModal(true); }, className: 'warning' }
+  ]}
+/>
 
       {/* الجدول الديناميكي */}
-      <div className={styles.tableWrapper}>
-        <table className={styles.ledgerTable}>
-          <thead>
-            <tr>
-              <th>التاريخ</th>
-              <th>النوع</th>
-              <th>البيان/الملاحظة</th>
-              <th>التكلفة</th>
-              <th>العداد</th>
-              <th>الإجراء</th>
-            </tr>
-          </thead>
-          <tbody>
-            {getDisplayData().map((item, index) => (
-              <tr key={index}>
-                <td>{formatDate(item.date)}</td>
-                <td>
-                  <span className={`${styles.statusBadge} ${item.type === 'oil' ? styles.oilType : styles.repairType}`}>
-                    {item.label}
-                  </span>
-                </td>
-                <td>{item.note || '---'}</td>
-                <td className={styles.textSuccess}>{Number(item.cost).toLocaleString()} ريال</td>
-               <td>
-  {/* عرض العداد الإجمالي الحالي */}
-  <div style={{ fontWeight: '500' }}>
-    {item.meter} كم
-  </div>
-  
-  {/* عرض الفرق (المسافة المقطوعة) فقط إذا كان نوع العملية زيت وهناك فرق محسب */}
-  {item.type === 'oil' && item.diff > 0 ? (
-    <div style={{ 
-      fontSize: '0.85rem', 
-      color: '#00e676', 
-      marginTop: '4px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px'
-    }}>
-      <span style={{ fontSize: '12px' }}>↑</span>
-      <span>{item.diff} كم مقطوعة</span>
-    </div>
-  ) : (
-    item.type === 'oil' && <span style={{ color: '#666', fontSize: '11px' }}>---</span>
+      <DataTable
+  columns={busColumns}
+  data={getDisplayData()}
+  emptyMessage="لا توجد سجلات في هذا القسم"
+  renderActions={(row) => (
+    <>
+      <button className="edit-cell" onClick={() => handleEditClick(row)}>✏️</button>
+      <button className="edit-cell" onClick={(e) => { e.stopPropagation(); deleteLedger(row); }}>🗑️</button>
+    </>
   )}
-              </td>
-             <td>
-                <button className="edit-cell" onClick={() => handleEditClick(item)}>✏️</button>&nbsp;&nbsp;
-                <button className="edit-cell" onClick={(e) => { e.stopPropagation(); deleteLedger(item); }}>🗑️</button>
-              </td>
-
-
-              </tr>
-            ))}
-            {getDisplayData().length === 0 && (
-              <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px'}}>لا توجد سجلات في هذا القسم</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+  rowKey="id"
+/>
 
       <UniversalModal 
         isOpen={showModal} 
