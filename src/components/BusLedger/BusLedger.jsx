@@ -10,7 +10,9 @@ import { printBusLedgerPDF } from '../../utils/pdfGenerator';
 const BusLedger = () => {
   const { busId } = useParams();
   const navigate = useNavigate();
+  const [driverName, setDriverName] = useState('');
   const [busesList, setBusesList] = useState([]);
+  
   const [bus, setBus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -27,11 +29,13 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
 
   const [newEntry, setNewEntry] = useState({
     busId: busId,
+    driverId:'',
     date: new Date().toISOString().split("T")[0],
     currentMeter: "",
     busNumber: '',
     paidAmount: "",
     dailyRent:'',
+    owner_name:'',
     cost:"",
     note: ""
   });
@@ -48,14 +52,36 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
     const buses = await smartGet("buses");
     const currentBus = buses.find(b => b.id.toString() === busId.toString());
     setBus(currentBus);
+    
+    // 2. جلب بيانات السائقين (لتحديد السائق المرتبط)
+    const driversData = await smartGet("driversData").catch(() => []);
+    
+    // البحث عن السائق الذي busId يساوي id الباص الحالي
+    const busDrivers = driversData.filter(d => d.busId === currentBus?.id);
+    let currentDriver = null;
+    if (busDrivers.length > 0) {
+      // نأخذ أحدث سائق حسب receiveDate (آخر تاريخ استلام)
+      const sorted = busDrivers.sort((a, b) => new Date(b.receiveDate) - new Date(a.receiveDate));
+      currentDriver = sorted[0];
+    }
+    setDriverName(currentDriver?.name || '');
+
 
     // 2. جلب سجلات الزيت والصيانة والـ ledger بالتوازي
-    const [oilData, repairData, ledgerData] = await Promise.all([
-      smartGet("oil_changes", `busId=${busId}`).catch(() => []),
-      smartGet("repairsData", `busId=${busId}`).catch(() => []),
-      smartGet("ledger", `busId=${busId}`).catch(() => [])
-    ]);
-    console.log("📦 البيانات القادمة من السيرفر (oilData):", oilData);
+    
+    
+    
+      // جلب سجلات الزيت والصيانة بالباص (هذه الـ APIs تدعم busId)
+      const [oilData, repairData] = await Promise.all([
+        smartGet("oil_changes", `busId=${busId}`).catch(() => []),
+        smartGet("repairsData", `busId=${busId}`).catch(() => [])
+      ]);
+
+      // ✅ جلب سجلات ledger بواسطة driverId الخاص بالسائق الحالي فقط (لأن API ledger لا يدعم busId)
+      let ledgerData = [];
+      if (currentDriver?.id) {
+        ledgerData = await smartGet("ledger", `driverId=${currentDriver.id}`).catch(() => []);
+      }
 
     // 3. معالجة بيانات الزيت
     let processedOil = oilData.map(o => {
@@ -112,13 +138,7 @@ const [currentEntryId, setCurrentEntryId] = useState(null);
     setRepairHistory(finalRepairHistory);
     setFullHistory(finalFullHistory);
 
-    console.log("--------------------------------");
-    console.log("🔍 فحص بيانات الزيت النهائية:");
-    finalOilHistory.forEach((item, index) => {
-      console.log(`سجل ${index + 1}: العداد = ${item.meter} ، المسافة المقطوعة (diff) = ${item.diff}`);
-    });
-    console.log("--------------------------------");
-
+   
     setLoading(false);
   } catch (err) {
     console.error("❌ خطأ في معالجة البيانات:", err);
@@ -291,7 +311,11 @@ const handleCloseModal = () => {
           <h1>سجل صيانة الباصات</h1>
         </div>
          <div className={styles.headerright}>
-          <h3> مركبة رقم | #{bus?.busNumber}</h3>
+           <ul>
+  <li> المالك:- {bus?.owner_name || 'غير محدد'}</li>
+  <li> اسم السائق:- {driverName || 'غير مرتبط'}</li>
+  <li> رقم المركبة:- {bus?.busNumber}</li>
+</ul>
         </div>
         
         

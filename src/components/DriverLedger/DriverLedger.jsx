@@ -75,6 +75,8 @@ const fetchLastOilChangeDate = async (busId) => {
     setLoading(true);
     const drivers = await smartGet("driversData");
     const currentDriver = drivers.find(d => d.id.toString() === driverId.toString());
+     
+    console.log(currentDriver)
     if (!currentDriver) {
       console.warn("لم يتم العثور على بيانات السائق");
       setLoading(false);
@@ -334,7 +336,8 @@ const exportPDF = () => {
         <ul>
         <li> الاسم : {driver.name}
         </li>
-        <li> رقم الباص : {driver.busNumber}
+        <li> رقم الباص 
+        : {driver.busNumber}
         </li>
         <li> رقم الهاتف : {driver.phone}
         </li>
