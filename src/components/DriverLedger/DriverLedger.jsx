@@ -483,6 +483,7 @@ const exportPDF = () => {
         setFormData={setNewEntry}
         onSave={handleAddEntry}
         loading={isSaving}
+        modalClassName="driver-ledger-modal"
       />
     </div>
   );

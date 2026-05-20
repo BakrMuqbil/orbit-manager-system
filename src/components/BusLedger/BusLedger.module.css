@@ -6,6 +6,7 @@
   min-height: 100vh;
   min-width: 1000px;
   direction: rtl;
+  color: #ffffff;
 }
 .loader-overlay {
     position: fixed;
@@ -31,9 +32,10 @@
     display: block;
     overflow: visible;
 }
-
+/*
 .headerCard {
-  
+  min-height: 100vh;
+  min-width: 100px;
   justify-content: space-between;
   align-items: center;
   background: #111c44;
@@ -67,10 +69,8 @@
   gap: 12px;
   margin-right: 35px;
 }
-
-
-
-/* الجدول وتنسيق البيانات */
+*/
+/* الجدول وتنسيق البيانات 
 .tableWrapper {
   background: #111c44;
   border-radius: 20px;
@@ -98,17 +98,18 @@
   font-size: 15px;
   color: #ffffff;
 }
-
+*/
 /* شارات الحالة (Status Badges) */
-.statusBadge {
+/*.statusBadge {
   padding: 5px 12px;
   border-radius: 10px;
   font-size: 12px;
   font-weight: bold;
   display: inline-block;
 }
-
+*/
 /* ألوان أنواع العمليات */
+
 .oilType { 
   background: rgba(0, 184, 216, 0.15); 
   color: #00b8d8; 
@@ -131,4 +132,19 @@
 /* تأثير عند تمرير الماوس على الصفوف */
 .ledgerTable tr:hover td {
   background: rgba(255, 255, 255, 0.02);
+}
+.busledgermodal {
+  max-width: 500px;
+  width: 50%;
+  margin: 0 auto;
+  position: relative;
+  top: auto;
+  bottom: auto;
+  transform: none;
+}
+
+.universal-modal-overlay {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }

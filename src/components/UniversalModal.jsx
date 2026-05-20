@@ -29,6 +29,7 @@ const UniversalModal = ({
   children,
   title,
   dynamicData = {},
+  modalClassName = '',
 }) => {
   // إذا كان المودال مغلقاً، لا نعرض أي شيء
   if (!isOpen) return null;
@@ -196,8 +197,7 @@ const UniversalModal = ({
   // ----- عرض المودال -----
   return (
     <div className="universal-modal-overlay" onClick={onClose}>
-      <div
-        className="universal-modal-content"
+      <div className={`universal-modal-content ${modalClassName}`}
         onClick={(e) => e.stopPropagation()}
         dir="rtl"
         style={{ position: 'relative' }}

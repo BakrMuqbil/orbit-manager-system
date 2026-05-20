@@ -1,6 +1,10 @@
 /* الحاوية الكبرى - تعتيم الخلفية مع تأثير ضبابي */
 .universal-modal-overlay {
   position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   inset: 0;
   background: rgba(11, 15, 41, 0.8); /* تعتيم يتماشى مع خلفية الداشبورد */
   backdrop-filter: blur(10px); /* تأثير زجاجي مودرن */

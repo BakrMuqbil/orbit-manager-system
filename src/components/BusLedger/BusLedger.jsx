@@ -409,6 +409,7 @@ const handleCloseModal = () => {
         formData={newEntry} 
         setFormData={setNewEntry}
         onSave={handleSave}
+        modalClassName={styles.busledgermodal}
       />
     </div>
   );

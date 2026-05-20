@@ -110,3 +110,19 @@
   width: 150px !important;
   height: auto !important;
 }
+
+.driver-ledger-modal {
+  max-width: 500px;
+  width: 50%;
+  margin: 0 auto;
+  position: relative;
+  top: auto;
+  bottom: auto;
+  transform: none;
+}
+
+.universal-modal-overlay {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
