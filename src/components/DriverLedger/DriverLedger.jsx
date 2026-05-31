@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService';
 import './DriverLedger.css';
 import UniversalModal from '../UniversalModal';
-import { CloudLoader, PageHeader, StatsCards ,TabsWithActions, DataTable} from '../../library/items.jsx';
+//import { CloudLoader } from '../../library/items.jsx';
+import {CloudLoader, PageHeader, StatsCards ,TabsWithActions, DataTable} from '../../library/items';
 import { printDriverLedgerPDF } from '../../utils/pdfGenerator';
 
 const DriverLedger = () => {
@@ -82,6 +83,7 @@ const ledgerColumns = [
   // state للزيت
   const [oilCounterVal, setOilCounterVal] = useState(0);
   const [oilInterval, setOilInterval] = useState(2000);
+  const [oilWarning, setOilWarning] = useState(2500);
 // جلب آخر تاريخ لتغيير زيت الباص المرتبط بالسائق
 const fetchLastOilChangeDate = async (busId) => {
   if (!busId) return null;
@@ -242,7 +244,7 @@ const totalRentPaid = ledger
 
   // 2. التحقق من أن المسافة المقطوعة منذ آخر تغيير زيت لا تتجاوز الحد المسموح (2000 كم)
   const distanceSinceLastOil = oilCounterVal + (currentMeter - lastMeter);
-  if (distanceSinceLastOil > oilInterval) {
+  if (distanceSinceLastOil > oilWarning) {
     return {
       valid: false,
       message: `المسافة المقطوعة للعداد الذي أدخلته ستتجاوز ${oilInterval} كم (الحد المسموح لتغيير الزيت). يرجى إنشاء سجل جديد لتغيير الزيت أولاً ثم متابعة تسجيل الإيجار.`

@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
 import styles from './BusLedger.module.css'; 
+
 import UniversalModal from '../UniversalModal'; 
 import { CloudLoader, PageHeader, StatsCards ,TabsWithActions, DataTable} from '../../library/items';
 import { printBusLedgerPDF } from '../../utils/pdfGenerator';
@@ -47,9 +48,8 @@ const busColumns = [
     key: 'type', 
     label: 'النوع', 
     render: (row) => (
-      <span className={`${styles.statusBadge} ${row.type === 'oil' ? styles.oilType : styles.repairType}`}>
-        {row.label}
-      </span>
+      <span className={`${styles.statusBadge} ${row.type === 'oil' ? styles.oilType : styles.repairType}`} >
+        {row.label} </span>
     )
   },
   { key: 'note', label: 'البيان/الملاحظة', render: (row) => row.note || '---' },
@@ -96,7 +96,12 @@ const fetchBusData = async () => {
     let currentDriver = null;
     if (busDrivers.length > 0) {
       // نأخذ أحدث سائق حسب receiveDate (آخر تاريخ استلام)
-      const sorted = busDrivers.sort((a, b) => new Date(b.receiveDate) - new Date(a.receiveDate));
+
+    
+      // const sorted = busDrivers.sort((a, b) => new Date(b.receiveDate) - new Date(a.receiveDate));
+        const sorted = [...busDrivers].sort((a, b) =>
+          Date.parse(b.receiveDate) -
+          Date.parse(a.receiveDate));
       currentDriver = sorted[0];
     }
     setDriverName(currentDriver?.name || '');
@@ -389,6 +394,7 @@ const handleCloseModal = () => {
 />
 
       {/* الجدول الديناميكي */}
+      
       <DataTable
   columns={busColumns}
   data={getDisplayData()}
@@ -401,6 +407,7 @@ const handleCloseModal = () => {
   )}
   rowKey="id"
 />
+
 
       <UniversalModal 
         isOpen={showModal} 
