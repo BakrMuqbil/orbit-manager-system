@@ -117,83 +117,88 @@ const fetchLastOilChangeDate = async (busId) => {
     }
   }, [isNewLedgerEntry, selectedDriver]);
 
-  const fetchData = async () => {
-  try {
-    setLoading(true);
-    const drivers = await smartGet("driversData");
-    const currentDriver = drivers.find(d => d.id.toString() === driverId.toString());
-     
-    
-    if (!currentDriver) {
-      console.warn("لم يتم العثور على بيانات السائق");
-      setLoading(false);
-      return;
-    }
-    setDriver(currentDriver);
-    setSelectedDriver(currentDriver);
+    const fetchData = async () => {
+    try {
+      setLoading(true);
+      const drivers = await smartGet("driversData");
+      const currentDriver = drivers.find(d => d.id.toString() === driverId.toString());
+       
+      if (!currentDriver) {
+        console.warn("لم يتم العثور على بيانات السائق");
+        setLoading(false);
+        return;
+      }
+      setDriver(currentDriver);
+      setSelectedDriver(currentDriver);
 
-    const ledgerData = await smartGet("ledger", `driverId=${driverId}`);
-    const sortedLedger = [...ledgerData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const ledgerData = await smartGet("ledger", `driverId=${driverId}`);
+      const sortedLedger = [...ledgerData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    let previousMeter = Number(currentDriver?.initialMeter || 0);
-    let runningBalance = Number(currentDriver?.opening_balance || 0);
-    const processedData = [];
+      let previousMeter = Number(currentDriver?.initialMeter || 0);
+      let runningBalance = Number(currentDriver?.opening_balance || 0);
+      const processedData = [];
 
-    // جلب آخر تاريخ تغيير زيت للباص
-    const lastOilDate = await fetchLastOilChangeDate(currentDriver.busId);
-    let totalDistanceSinceOil = 0;
-    let lastOilMeter = previousMeter;
+      // جلب آخر تاريخ تغيير زيت للباص
+      const lastOilDate = await fetchLastOilChangeDate(currentDriver.busId);
+      let totalDistanceSinceOil = 0;
+      let lastOilMeter = previousMeter;
 
-    if (lastOilDate) {
-      // نبحث عن قراءة العداد عند آخر تغيير زيت (أقرب سجل بعد أو في نفس التاريخ)
-      const oilChangeLedger = sortedLedger.find(entry => new Date(entry.date) >= lastOilDate);
-      if (oilChangeLedger) lastOilMeter = Number(oilChangeLedger.currentMeter);
-      previousMeter = lastOilMeter;
-    }
-
-    for (const entry of sortedLedger) {
-      const currentMeter = Number(entry.currentMeter || 0);
-      const paidAmount = Number(entry.paidAmount || 0);
-      const rentAmount = (entry.type === 'debt' || entry.type === 'payment') ? 0 : Number(currentDriver?.dailyRent || 0);
-
-      let distance = 0;
-      if (entry.type !== 'debt' && entry.type !== 'payment') {
-        distance = currentMeter > previousMeter ? currentMeter - previousMeter : 0;
-        previousMeter = currentMeter;
+      if (lastOilDate) {
+        // نبحث عن قراءة العداد عند آخر تغيير زيت (أقرب سجل بعد أو في نفس التاريخ)
+        const oilChangeLedger = sortedLedger.find(entry => new Date(entry.date) >= lastOilDate);
+        if (oilChangeLedger) lastOilMeter = Number(oilChangeLedger.currentMeter);
+        previousMeter = lastOilMeter;
       }
 
-      // حساب المسافة المقطوعة منذ آخر تغيير زيت فقط
-      if (entry.type !== 'debt' && entry.type !== 'payment') {
-        if (lastOilDate && new Date(entry.date) >= lastOilDate) {
-          totalDistanceSinceOil += distance;
-        } else if (!lastOilDate) {
-          totalDistanceSinceOil += distance;
+      for (const entry of sortedLedger) {
+        const currentMeter = Number(entry.currentMeter || 0);
+        const paidAmount = Number(entry.paidAmount || 0);
+        
+        // 🚀 إصلاح مشكلة 28 المعمارية: نعتمد أولاً على القيمة التاريخية المثبتة rentAmount في قاعدة البيانات
+        // وإذا لم تكن موجودة أو كانت صفر (للسجلات القديمة) نأخذ القيمة الافتراضية للباص كـ fallback لضمان ثبات العمليات الحسابية
+        const rentAmount = (entry.type === 'debt' || entry.type === 'payment') 
+          ? 0 
+          : Number(entry.rentAmount || entry.dailyRent || currentDriver?.dailyRent || 0);
+
+        let distance = 0;
+        if (entry.type !== 'debt' && entry.type !== 'payment') {
+          distance = currentMeter > previousMeter ? currentMeter - previousMeter : 0;
+          previousMeter = currentMeter;
         }
+
+        // حساب المسافة المقطوعة منذ آخر تغيير زيت فقط
+        if (entry.type !== 'debt' && entry.type !== 'payment') {
+          if (lastOilDate && new Date(entry.date) >= lastOilDate) {
+            totalDistanceSinceOil += distance;
+          } else if (!lastOilDate) {
+            totalDistanceSinceOil += distance;
+          }
+        }
+
+        if (entry.type === 'debt') runningBalance += paidAmount;
+        else if (entry.type === 'payment') runningBalance -= paidAmount;
+        else runningBalance += (rentAmount - paidAmount);
+
+        processedData.push({
+          ...entry,
+          currentMeter,
+          initialMeter: Number(currentDriver?.initialMeter || 0),
+          dailyRent: rentAmount, // عرض القيمة التاريخية الثابتة في الجدول
+          paidAmount,
+          distance,
+          cumulativeBalance: runningBalance
+        });
       }
 
-      if (entry.type === 'debt') runningBalance += paidAmount;
-      else if (entry.type === 'payment') runningBalance -= paidAmount;
-      else runningBalance += (rentAmount - paidAmount);
-
-      processedData.push({
-        ...entry,
-        currentMeter,
-        initialMeter: Number(currentDriver?.initialMeter || 0),
-        dailyRent: rentAmount,
-        paidAmount,
-        distance,
-        cumulativeBalance: runningBalance
-      });
+      setLedger(processedData.reverse());
+      setOilCounterVal(totalDistanceSinceOil); // تعيين المسافة منذ آخر تغيير زيت
+      setLoading(false);
+    } catch (err) {
+      console.error("خطأ في جلب بيانات السجل:", err);
+      setLoading(false);
     }
+  };
 
-    setLedger(processedData.reverse());
-    setOilCounterVal(totalDistanceSinceOil); // تعيين المسافة منذ آخر تغيير زيت
-    setLoading(false);
-  } catch (err) {
-    console.error("خطأ في جلب بيانات السجل:", err);
-    setLoading(false);
-  }
-};
   
   // حساب إجمالي المدفوع للإيجار
 const totalRentPaid = ledger
@@ -254,7 +259,7 @@ const totalRentPaid = ledger
   return { valid: true };
 };
 
-  const handleAddEntry = async (e) => {
+    const handleAddEntry = async (e) => {
     if (e) e.preventDefault();
     setIsSaving(true);
     try {
@@ -262,16 +267,18 @@ const totalRentPaid = ledger
       const entryType = newEntry.type || "rent";
       let amount = Number(newEntry.paidAmount || 0);
       
-     const currentMeter = Number(newEntry.currentMeter || 0);
+      const currentMeter = Number(newEntry.currentMeter || 0);
 
-  // ✅ التحقق من صحة العداد (فقط للإيجار)
-    if (entryType === 'rent') {
-    const validation = validateMeterReading(entryType, currentMeter);
-    if (!validation.valid) {
-      alert(validation.message);
-      return; // منع الحفظ
-    }
-  }
+      // ✅ التحقق من صحة العداد (فقط للإيجار)
+      if (entryType === 'rent') {
+        const validation = validateMeterReading(entryType, currentMeter);
+        if (!validation.valid) {
+          alert(validation.message);
+          setIsSaving(false); // 🛠️ إصلاح مشكلة 6: إلغاء وضع الحفظ هنا لكي لا يعلق الزر في المودال عند فشل التحقق
+          return; // منع الحفظ
+        }
+      }
+
       const dataToSave = {
         driverId: driverId,
         busId: currentBusId,
@@ -281,11 +288,15 @@ const totalRentPaid = ledger
           : Number(newEntry.currentMeter || 0),
         paidAmount: amount,
         type: entryType,
-        note: newEntry.note || ""
+        note: newEntry.note || "",
+        // 🚀 إصلاح مشكلة 28 المعمارية: إرسال قيمة الإيجار اللحظية ليتم حفظها وتثبيتها في قاعدة البيانات
+        rentAmount: entryType === 'rent' ? Number(newEntry.rentAmount || driver?.dailyRent || 0) : 0
       };
+
       await smartSave("ledger", dataToSave, isEditing ? currentEntryId : null);
       await fetchData();
       handleCloseModal();
+      
       const successMsg = entryType === 'debt' ? "تم تسجيل الدين بنجاح" :
         entryType === 'payment' ? "تم تسجيل السداد بنجاح" : "تم تسجيل العملية بنجاح";
       alert(successMsg);
@@ -296,6 +307,7 @@ const totalRentPaid = ledger
       setIsSaving(false);
     }
   };
+
 
   const handleEditClick = (entry) => {
     setIsEditing(true);
@@ -451,6 +463,8 @@ const exportPDF = () => {
       onClick: () => {
         setActiveSchema("ledger_entry");
         setIsNewLedgerEntry(true);
+        setNewEntry({ ...newEntry, type: 'rent', rentAmount: driver?.dailyRent || 0 });
+        
         setShowModal(true);
       }, 
       className: 'primary' 

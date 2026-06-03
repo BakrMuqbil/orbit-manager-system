@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
 import styles from './BusLedger.module.css'; 
-
 import UniversalModal from '../UniversalModal'; 
 import { CloudLoader, PageHeader, StatsCards ,TabsWithActions, DataTable} from '../../library/items';
 import { printBusLedgerPDF } from '../../utils/pdfGenerator';
@@ -14,7 +13,7 @@ const BusLedger = () => {
   const [driverName, setDriverName] = useState('');
   const [busesList, setBusesList] = useState([]);
   
-  const [bus, setBus] = useState([]);
+  const [bus, setBus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState("quick_oil"); 
@@ -285,13 +284,12 @@ const formatDate = (dateString) => {
     )}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
   };
 // دالة لطباعة تقرير مخصص حسب النوع (type)
-const exportFullPDF = () => {
-  if (fullHistory.length === 0) {
-    alert("لا توجد سجلات للتصدير");
-    return;
-  }
-  printBusLedgerPDF(bus, fullHistory, totalOil, totalRepair);
-};
+  // ✅ إصلاح مشكلة 13: توحيد دالة التصدير لتقرأ القسم النشط تلقائياً دون تشتيت المعاملات
+  const exportFullPDF = (sectionType = null) => {
+      const activeSection = sectionType || activeTab;
+      printBusLedgerPDF(bus, fullHistory, activeSection, netProfit, oilHistory, repairHistory);
+  };
+
 
 const handleCloseModal = () => {
     // 1. إغلاق المودال برمجياً

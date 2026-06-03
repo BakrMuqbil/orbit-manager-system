@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { smartGet, smartSave, smartDelete } from '../../utils/apiService'; 
 import { useNavigate } from 'react-router-dom';
 import UniversalModal from '../UniversalModal'; 
@@ -21,7 +21,7 @@ const BusManager = () => {
             setBuses(data);
           
         } catch (err) { console.error("Error:", err); 
-          setLoading(true)
+          setLoading(false)
           }
           finally {
             setLoading(false);
@@ -59,13 +59,44 @@ const BusManager = () => {
         } catch (err) { alert("خطأ في الحذف"); }
     };
 
-    const toggleStatus = async (bus) => {
-        const nextStatus = bus.status === 'في الخدمة' ? 'خارج الخدمة' : 'في الخدمة';
+    // داخل BusManager.jsx، استبدل دالة toggleStatus بما يلي:
+
+const handleBusAction = async (bus) => {
+    // نحدد أولاً ما إذا كان الباص مرتبط بسائق
+    // bus.status يأتي من الخادم وهو محسوب: 'في الخدمة' (لا سائق) أو 'خارج الخدمة' (يوجد سائق)
+    const hasDriver = bus.status === 'خارج الخدمة';
+
+    if (hasDriver) {
+        // يوجد سائق مرتبط → نقوم بفصله
+        if (!window.confirm(`هل أنت متأكد من فصل السائق عن الباص رقم ${bus.busNumber}؟`)) return;
+        
         try {
-            await smartSave('buses', { ...bus, status: nextStatus }, bus.id);
-            setBuses(prev => prev.map(b => b.id === bus.id ? { ...b, status: nextStatus } : b));
-        } catch (err) { alert("فشل تحديث الحالة"); }
-    };
+            // جلب جميع السائقين للعثور على السائق المرتبط بهذا الباص
+            const drivers = await smartGet('driversData');
+            const assignedDriver = drivers.find(d => d.busId === bus.id);
+            
+            if (!assignedDriver) {
+                alert("لم يتم العثور على سائق مرتبط بهذا الباص.");
+                return;
+            }
+
+            // تحديث السائق: تعيين busId = null
+            await smartSave('driversData', { ...assignedDriver, busId: null }, assignedDriver.id);
+            
+            // إعادة تحميل قائمة الباصات لتحديث الحالة
+            await loadBuses();
+            alert(`تم فصل السائق ${assignedDriver.name} عن الباص بنجاح.`);
+        } catch (err) {
+            console.error(err);
+            alert("فشل في فصل السائق: " + err.message);
+        }
+    } else {
+        // لا يوجد سائق مرتبط → توجيه المستخدم إلى إدارة السائقين لتعيين سائق
+        alert(`الباص رقم ${bus.busNumber} ليس لديه سائق. يمكنك تعيين سائق من خلال قائمة "إدارة السائقين".`);
+        // اختيارياً: يمكن فتح نافذة إضافة سائق جديدة مع تحديد الباص تلقائياً
+        // navigate('/home/drivers?busId=' + bus.id);
+    }
+};
 
     const handleCloseModal = () => {
         setShowModal(false);
@@ -107,9 +138,15 @@ const BusManager = () => {
                 <span>الميتار: {bus.initialMeter} كم</span>
                 <span>الإيجار: {Number(bus.dailyRent).toLocaleString()} ريال</span>
             </div>
-            <span className={`status-tag ${bus.status === 'في الخدمة' ? 'badge-active' : 'badge-inactive'}`}>
-                {bus.status}
-            </span>
+           <button 
+    className="status-toggle-btn" 
+    onClick={(e) => {
+        e.stopPropagation();
+        handleBusAction(bus);
+    }}
+>
+    {bus.status === 'خارج الخدمة' ? 'فصل السائق' : 'تعيين سائق'}
+</button>
         </div>
 
         {/* الجزء السفلي: الأزرار */}

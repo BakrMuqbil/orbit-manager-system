@@ -316,7 +316,7 @@ app.post('/api/buses', authMiddleware, checkCompanySubscription, async (req, res
   }
 });
 
-app.put('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
+/* app.put('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
   const { busNumber, owner_name, initialMeter, dailyRent } = req.body;
   const { company_id, role } = req.user;
@@ -329,7 +329,39 @@ app.put('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, 
   } catch (err) {
     res.status(500).send('خطأ في تعديل الباص');
   }
+}); */
+
+app.put('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
+  const { id } = req.params;
+  const { busNumber, owner_name, initialMeter, dailyRent } = req.body;
+  const { company_id, role } = req.user;
+  try {
+    const filter = role === 'super_admin' ? '' : 'AND company_id = $6';
+    const params = role === 'super_admin' ? [busNumber, owner_name, initialMeter, dailyRent, id] : [busNumber, owner_name, initialMeter, dailyRent, id, company_id];
+    
+    const result = await db.query(`UPDATE buses SET "busNumber"=$1, "owner_name"=$2, "initialMeter"=$3, "dailyRent"=$4 WHERE id=$5 ${filter} RETURNING *`, params);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send('خطأ في تعديل الباص');
+  }
 });
+
+// 🚀 مسار إضافي ومستقل لفصل السائق معمارياً عن الحافلة عند تحويل حالتها لخارج الخدمة
+app.put('/api/buses/:id/release', authMiddleware, checkCompanySubscription, async (req, res) => {
+  const { id } = req.params;
+  const { company_id } = req.user;
+  try {
+    await db.query(
+      'UPDATE drivers SET "busId" = NULL WHERE "busId" = $1 AND company_id = $2',
+      [id, company_id]
+    );
+    res.json({ success: true, message: "تم تحرير وفصل السائق عن المركبة بنجاح" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'فشل فصل السائق معمارياً' });
+  }
+});
+
 
 app.delete('/api/buses/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
@@ -453,7 +485,7 @@ app.get('/api/ledger', authMiddleware, checkCompanySubscription, async (req, res
   }
 });
 
-app.post('/api/ledger', authMiddleware, checkCompanySubscription, async (req, res) => {
+/* app.post('/api/ledger', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { driverId, busId, date, currentMeter, paidAmount, type, note } = req.body;
   const { company_id } = req.user;
   try {
@@ -465,22 +497,55 @@ app.post('/api/ledger', authMiddleware, checkCompanySubscription, async (req, re
   } catch (err) {
     res.status(500).send('خطأ في إضافة السجل');
   }
+}); */
+
+app.post('/api/ledger', authMiddleware, checkCompanySubscription, async (req, res) => {
+  // ✅ إضافة rentAmount إلى المدخلات المستلمة من طلب الواجهة
+  const { driverId, busId, date, currentMeter, paidAmount, type, note, rentAmount } = req.body;
+  const { company_id } = req.user;
+  try {
+    // 🚀 جلب dailyRent من الباص تلقائياً كـ fallback إذا كانت العملية إيجار ولم يتم تمرير قيمة محددة
+    let finalRentAmount = rentAmount || 0;
+    if (type === 'rent' && !rentAmount && busId) {
+      const busRes = await db.query('SELECT "dailyRent" FROM buses WHERE id = $1', [busId]);
+      finalRentAmount = busRes.rows[0]?.dailyRent || 0;
+    }
+
+    // السجل يحفظ الآن عمود "rentAmount" لضمان ثبات حسابات السائق التاريخية
+    const result = await db.query(
+      'INSERT INTO ledger ("driverId", "busId", date, "currentMeter", "paidAmount", type, note, company_id, "rentAmount") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+      [driverId, busId, date, currentMeter, paidAmount, type, note, company_id, finalRentAmount]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('خطأ في إضافة السجل');
+  }
 });
+
 
 // تعديل سجل مالي
 app.put('/api/ledger/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { id } = req.params;
-  const { driverId, busId, date, currentMeter, paidAmount, type, note } = req.body;
+  // ✅ إضافة rentAmount للمدخلات المستلمة لضمان تحديثه أو الحفاظ عليه عند التعديل
+  const { driverId, busId, date, currentMeter, paidAmount, type, note, rentAmount } = req.body;
   const { company_id, role } = req.user;
 
   try {
+    let finalRentAmount = rentAmount || 0;
+    if (type === 'rent' && !rentAmount && busId) {
+      const busRes = await db.query('SELECT "dailyRent" FROM buses WHERE id = $1', [busId]);
+      finalRentAmount = busRes.rows[0]?.dailyRent || 0;
+    }
+
+    // تحديث الاستعلامات لتشمل حقل "rentAmount" مع الحفاظ على صلاحيات التعديل للـ super_admin والشركة
     const query = (role === 'super_admin')
-      ? 'UPDATE ledger SET "driverId"=$1, "busId"=$2, date=$3, "currentMeter"=$4, "paidAmount"=$5, type=$6, note=$7 WHERE id=$8 RETURNING *'
-      : 'UPDATE ledger SET "driverId"=$1, "busId"=$2, date=$3, "currentMeter"=$4, "paidAmount"=$5, type=$6, note=$7 WHERE id=$8 AND company_id=$9 RETURNING *';
+      ? 'UPDATE ledger SET "driverId"=$1, "busId"=$2, date=$3, "currentMeter"=$4, "paidAmount"=$5, type=$6, note=$7, "rentAmount"=$8 WHERE id=$9 RETURNING *'
+      : 'UPDATE ledger SET "driverId"=$1, "busId"=$2, date=$3, "currentMeter"=$4, "paidAmount"=$5, type=$6, note=$7, "rentAmount"=$8 WHERE id=$9 AND company_id=$10 RETURNING *';
 
     const params = (role === 'super_admin')
-      ? [driverId, busId, date, currentMeter, paidAmount, type, note, id]
-      : [driverId, busId, date, currentMeter, paidAmount, type, note, id, company_id];
+      ? [driverId, busId, date, currentMeter, paidAmount, type, note, finalRentAmount, id]
+      : [driverId, busId, date, currentMeter, paidAmount, type, note, finalRentAmount, id, company_id];
 
     const result = await db.query(query, params);
 
@@ -489,9 +554,11 @@ app.put('/api/ledger/:id', authMiddleware, checkCompanySubscription, async (req,
     }
     res.json(result.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).send('خطأ في تعديل السجل');
   }
 });
+
 
 // حذف سجل مالي
 app.delete('/api/ledger/:id', authMiddleware, checkCompanySubscription, async (req, res) => {
@@ -511,6 +578,7 @@ app.delete('/api/ledger/:id', authMiddleware, checkCompanySubscription, async (r
     res.status(500).send('خطأ في الحذف');
   }
 });
+
 
 // =======================
 // 🛠️ مسارات الإصلاحات (repairs)
@@ -622,15 +690,27 @@ app.get('/api/oil_changes', authMiddleware, checkCompanySubscription, async (req
 app.post('/api/oil_changes', authMiddleware, checkCompanySubscription, async (req, res) => {
   const { busId, date, currentMeter, paidAmount, note } = req.body;
   const { company_id } = req.user;
+
+  if (!busId) {
+    return res.status(400).json({ error: 'busId مطلوب' });
+  }
+
   try {
+    // ✅ 1. تحديث الباص بالقيمة الجديدة
+    await db.query('UPDATE buses SET "initialMeter" = $1 WHERE id = $2', [currentMeter, busId]);
+
+    // ✅ 2. إدراج سجل تغيير الزيت
     const oilResult = await db.query(
-      'INSERT INTO oil_changes (busid, changedate, totaldistance, amount, note, company_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      `INSERT INTO oil_changes 
+        (busid, changedate, totaldistance, amount, note, company_id) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [busId, date || new Date(), currentMeter, paidAmount, note, company_id]
     );
-    await db.query('UPDATE buses SET "initialMeter" = $1 WHERE id = $2', [currentMeter, busId]);
+
     res.json({ success: true, data: oilResult.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: 'فشل في تسجيل تغيير الزيت' });
+    console.error("❌ خطأ في POST /oil_changes:", err);
+    res.status(500).json({ error: 'فشل في تسجيل تغيير الزيت: ' + err.message });
   }
 });
 
@@ -668,20 +748,46 @@ app.delete('/api/oil_changes/:id', authMiddleware, checkCompanySubscription, asy
   const { company_id, role } = req.user;
 
   try {
+    // ✅ 1. جلب busId للسجل المراد حذفه
+    const oilRecord = await db.query('SELECT busid FROM oil_changes WHERE id = $1', [id]);
+    
+    if (oilRecord.rows.length === 0) {
+      return res.status(404).json({ error: 'السجل غير موجود' });
+    }
+
+    const busId = oilRecord.rows[0].busid;
+
+    // ✅ 2. حذف السجل
     const query = role === 'super_admin'
       ? 'DELETE FROM oil_changes WHERE id = $1'
       : 'DELETE FROM oil_changes WHERE id = $1 AND company_id = $2';
-
+    
     const params = role === 'super_admin' ? [id] : [id, company_id];
-    const result = await db.query(query, params);
+    await db.query(query, params);
 
-    if (result.rowCount === 0) return res.status(404).json({ error: 'تعذر الحذف' });
-    res.json({ success: true, message: 'تم حذف سجل الزيت' });
+    // ✅ 3. البحث عن آخر سجل تغيير زيت متبقي
+    const lastOil = await db.query(
+      `SELECT totaldistance FROM oil_changes 
+       WHERE busid = $1 
+       ORDER BY changedate DESC LIMIT 1`,
+      [busId]
+    );
+
+    // ✅ 4. تحديث initialMeter في جدول buses
+    if (lastOil.rows.length > 0) {
+      // يوجد سجل سابق → استعد قيمته
+      await db.query('UPDATE buses SET "initialMeter" = $1 WHERE id = $2', [lastOil.rows[0].totaldistance, busId]);
+    } else {
+      // لا توجد سجلات تغيير زيت متبقية → استعد القيمة الأصلية من baseMeter
+      await db.query('UPDATE buses SET "initialMeter" = "basemeter" WHERE id = $1', [busId]);
+    }
+
+    res.json({ success: true, message: 'تم حذف سجل الزيت واستعادة العداد السابق' });
   } catch (err) {
-    res.status(500).json({ error: 'خطأ في حذف سجل الزيت' });
+    console.error("❌ خطأ في DELETE /oil_changes:", err);
+    res.status(500).json({ error: 'خطأ في حذف سجل الزيت: ' + err.message });
   }
 });
-
 // تشغيل السيرفر للإنتاج والتطوير
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production') {

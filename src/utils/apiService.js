@@ -5,11 +5,10 @@ const API_URL = '/api';
 
 /**
  * المحرك الأساسي (Core Request Handler)
- * تم تحديثه ليدعم إرسال التوكن تلقائياً ومعالجة انتهاء الجلسة
+ * تم تحديثه ليدعم إرسال التوكن تلقائياً ومعالجة انتهاء الجلسة، والتعامل الصحيح مع الأخطاء
  */
 export const apiRequest = async (endpoint, method = 'GET', data = null) => {
     try {
-        // جلب التوكن من التخزين المحلي (localStorage)
         const token = localStorage.getItem('token');
 
         const options = {
@@ -17,7 +16,6 @@ export const apiRequest = async (endpoint, method = 'GET', data = null) => {
             headers: { 
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                // إضافة التوكن في الهيدر إذا كان موجوداً
                 ...(token && { 'Authorization': `Bearer ${token}` })
             },
         };
@@ -28,11 +26,14 @@ export const apiRequest = async (endpoint, method = 'GET', data = null) => {
 
         const response = await fetch(`${API_URL}/${endpoint}`, options);
         
-        // معالجة خطأ انتهاء صلاحية التوكن أو عدم التصريح (401)
+        // ❌ إصلاح 1 و 3: رمي الخطأ بدلاً من التوجيه التلقائي في حال كان الطلب قادم من صفحة تسجيل الدخول نفسها
         if (response.status === 401) {
-            localStorage.clear(); // مسح البيانات المخزنة
-            window.location.href = '/login'; // توجيه المستخدم لصفحة تسجيل الدخول
-            return;
+            const isLoginEndpoint = endpoint === 'login' || endpoint === 'auth/login';
+            if (!isLoginEndpoint) {
+                localStorage.clear(); 
+                window.location.href = '/'; // توجيه للمسار الرئيسي للمنصة
+                return;
+            }
         }
 
         // معالجة الأخطاء إذا لم تكن الاستجابة ناجحة
@@ -40,14 +41,12 @@ export const apiRequest = async (endpoint, method = 'GET', data = null) => {
             let errorMessage = `Server Error: ${response.status}`;
             try {
                 const errorData = await response.json();
-                errorMessage = errorData.message || errorMessage;
-            } catch (e) {
-                // في حال كان الرد ليس JSON
-            }
+                // ✅ إصلاح 2: قراءة .error أولاً ثم .message لضمان دقة رسالة الخطأ القادمة من السيرفر
+                errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {}
             throw new Error(errorMessage);
         }
         
-        // التأكد من أن الرد يحتوي على بيانات قبل محاولة تحويله لـ JSON
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
             return await response.json();
@@ -62,7 +61,6 @@ export const apiRequest = async (endpoint, method = 'GET', data = null) => {
 
 /**
  * دالة الجلب الذكية (smartGet)
- * تُستخدم لجلب السائقين (driversData) أو الباصات
  */
 export const smartGet = async (endpoint, params = "") => {
     const query = params ? `?${params}` : "";
@@ -71,7 +69,6 @@ export const smartGet = async (endpoint, params = "") => {
 
 /**
  * دالة الحفظ الشاملة (smartSave)
- * تقوم بعمل POST للإضافة الجديدة و PUT إذا كان هناك ID للتعديل
  */
 export const smartSave = async (endpoint, data, id = null) => {
     const method = id ? 'PUT' : 'POST';
@@ -89,8 +86,7 @@ export const smartDelete = async (endpoint, id) => {
 
 /**
  * دالة مخصصة لعمليات السجل (Ledger Operations)
- * لتسهيل تسجيل (إيجار، زيت، إصلاحات) مباشرة من الداشبورد
  */
-export const recordTransaction = async (transactionData) => {
-    return await apiRequest('ledger', 'POST', transactionData);
+export const smartLedgerSave = async (data, id = null) => {
+    return await smartSave('ledger', data, id);
 };
