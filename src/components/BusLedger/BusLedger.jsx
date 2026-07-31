@@ -218,8 +218,70 @@ const handleSave = async (e) => {
         };
 
     // استخدام smartSave: إذا وجد id سيقوم بعمل PUT، وإلا سيعمل POST
-    await smartSave(endpoint, dataToSave, isEditing ? currentEntryId : null);
-    
+    const savedEntry = await smartSave(endpoint, dataToSave, isEditing ? currentEntryId : null);
+
+    // ===== فاصل تغيير الزيت (oil_marker) في جدول ledger =====
+    // يُستخدم في DriverLedger.jsx كنقطة انطلاق موثوقة لحساب المسافة (distance)
+    // والمسافة منذ آخر تغيير زيت (oilCounterVal)، بمعزل تام عن جدول oil_changes
+    if (isOil) {
+      const oilRecordId = savedEntry?.id || currentEntryId;
+      const markerNote = `oil_ref:${oilRecordId}`;
+
+      if (isEditing) {
+        // تعديل سجل زيت موجود: نبحث عن الفاصل المرتبط ونحدّثه بدل إنشاء نسخة جديدة
+        try {
+          const existingMarkers = await smartGet("ledger", `busId=${busId}`);
+          const relatedMarker = (existingMarkers || []).find(
+            (l) => l.type === "oil_marker" && l.note === markerNote
+          );
+          if (relatedMarker) {
+            await smartSave(
+              "ledger",
+              {
+                busId: parseInt(busId),
+                driverId: null,
+                date: newEntry.date,
+                currentMeter: finalMeter,
+                paidAmount: 0,
+                type: "oil_marker",
+                note: markerNote,
+              },
+              relatedMarker.id
+            );
+          } else {
+            // لم يوجد فاصل مرتبط (مثلاً سجل قديم من قبل هذا التحديث) - ننشئ واحداً جديداً
+            await smartSave("ledger", {
+              busId: parseInt(busId),
+              driverId: null,
+              date: newEntry.date,
+              currentMeter: finalMeter,
+              paidAmount: 0,
+              type: "oil_marker",
+              note: markerNote,
+            });
+          }
+        } catch (markerErr) {
+          console.error("⚠️ فشل تحديث فاصل تغيير الزيت:", markerErr);
+        }
+      } else {
+        // إنشاء جديد: ننشئ فاصل جديد مرتبط بسجل الزيت الجديد
+        try {
+          await smartSave("ledger", {
+            busId: parseInt(busId),
+            driverId: null,
+            date: newEntry.date,
+            currentMeter: finalMeter,
+            paidAmount: 0,
+            type: "oil_marker",
+            note: markerNote,
+          });
+        } catch (markerErr) {
+          console.error("⚠️ فشل إنشاء فاصل تغيير الزيت:", markerErr);
+        }
+      }
+    }
+    // =========================================================
+
     await fetchBusData();
     handleCloseModal(); // دالة لتنظيف الحالة وإغلاق المودال
     alert(isEditing ? "تم التعديل بنجاح" : "تم الإضافة بنجاح");

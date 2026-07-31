@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import styles from './items.module.css';
 import { useNavigate } from 'react-router-dom';
 
@@ -274,8 +275,53 @@ export const DataTable = ({
   data, 
   emptyMessage = "لا توجد سجلات", 
   renderActions, 
-  rowKey = 'id' 
+  rowKey = 'id',
+  itemsPerPage = 10,
 }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalItems = data ? data.length : 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+
+  // إذا تغيّرت البيانات وصارت الصفحة الحالية خارج النطاق (مثلاً بعد حذف سجل)، نرجعها لآخر صفحة صالحة
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const safePage = Math.min(currentPage, totalPages);
+
+  const startIndex = (safePage - 1) * itemsPerPage;
+  const paginatedData = data ? data.slice(startIndex, startIndex + itemsPerPage) : [];
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // بناء قائمة أرقام الصفحات المعروضة (مع "..." عند وجود عدد كبير من الصفحات)
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible + 2) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+
+    pages.push(1);
+    let start = Math.max(2, safePage - 1);
+    let end = Math.min(totalPages - 1, safePage + 1);
+
+    if (start > 2) pages.push('...');
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < totalPages - 1) pages.push('...');
+
+    pages.push(totalPages);
+    return pages;
+  };
+
   // حالة عدم وجود بيانات
   if (!data || data.length === 0) {
     const colSpan = columns.length + (renderActions ? 1 : 0);
@@ -314,22 +360,66 @@ export const DataTable = ({
           </tr>
         </thead>
         <tbody>
-          {data.map((row, idx) => (
-            <tr key={row[rowKey] || idx}>
+          {paginatedData.map((row, idx) => (
+            <tr key={row[rowKey] || (startIndex + idx)}>
               {columns.map(col => (
                 <td key={col.key}>
-                  {col.render ? col.render(row, idx) : (row[col.key] ?? '---')}
+                  {col.render ? col.render(row, startIndex + idx) : (row[col.key] ?? '---')}
                 </td>
               ))}
               {renderActions && (
                 <td>
-                  {renderActions(row, idx)}
+                  {renderActions(row, startIndex + idx)}
                 </td>
               )}
             </tr>
           ))}
         </tbody>
       </table>
+
+      {totalPages > 1 && (
+        <div className={styles.paginationWrapper}>
+          <span className={styles.paginationInfo}>
+            عرض {startIndex + 1}–{Math.min(startIndex + itemsPerPage, totalItems)} من {totalItems}
+          </span>
+
+          <div className={styles.paginationControls}>
+            <button
+              className={styles.paginationArrow}
+              onClick={() => goToPage(safePage - 1)}
+              disabled={safePage === 1}
+              aria-label="الصفحة السابقة"
+            >
+              ‹
+            </button>
+
+            {getPageNumbers().map((page, i) =>
+              page === '...' ? (
+                <span key={`ellipsis-${i}`} className={styles.paginationEllipsis}>
+                  …
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  className={`${styles.paginationNumber} ${page === safePage ? styles.paginationNumberActive : ''}`}
+                  onClick={() => goToPage(page)}
+                >
+                  {page}
+                </button>
+              )
+            )}
+
+            <button
+              className={styles.paginationArrow}
+              onClick={() => goToPage(safePage + 1)}
+              disabled={safePage === totalPages}
+              aria-label="الصفحة التالية"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -383,3 +383,115 @@ box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
 .textSuccess {
   color: #00e676 !important;
 }
+
+/* ===== ترقيم الصفحات (Pagination) ===== */
+.paginationWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 18px 24px;
+  border-top: 1px solid #1b254b;
+  background: #0d1638;
+  direction: rtl;
+}
+
+.paginationInfo {
+  font-size: 13px;
+  color: #707eae;
+  white-space: nowrap;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+
+.paginationArrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border-radius: 10px;
+  border: 1px solid #1b254b;
+  background: #1b254b;
+  color: #a3edfd;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.paginationArrow:hover:not(:disabled) {
+  background: #252f5a;
+  border-color: #4318ff;
+}
+
+.paginationArrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.paginationNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #1b254b;
+  color: #a3edfd;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.paginationNumber:hover {
+  background: #252f5a;
+}
+
+.paginationNumberActive,
+.paginationNumberActive:hover {
+  background: #4318ff;
+  color: #ffffff;
+  border-color: #4318ff;
+  box-shadow: 0 4px 15px rgba(67, 24, 255, 0.3);
+}
+
+.paginationEllipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 34px;
+  color: #707eae;
+  font-size: 13px;
+  user-select: none;
+}
+
+/* استجابة للشاشات الصغيرة (الموبايل) */
+@media (max-width: 640px) {
+  .paginationWrapper {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .paginationControls {
+    justify-content: center;
+    margin-inline-start: 0;
+    flex-wrap: wrap;
+  }
+
+  .paginationInfo {
+    text-align: center;
+  }
+}

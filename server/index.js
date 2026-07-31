@@ -384,7 +384,11 @@ app.get('/api/driversData', authMiddleware, checkCompanySubscription, async (req
   try {
     let query = `
       SELECT d.*, b."busNumber", b."dailyRent", b."initialMeter",
-      COALESCE((SELECT l."currentMeter" FROM ledger l WHERE l."driverId" = d.id ORDER BY l.date DESC LIMIT 1), b."initialMeter") AS lastMeter
+      COALESCE(
+        (SELECT l."currentMeter" FROM ledger l WHERE l."driverId" = d.id ORDER BY l.date DESC, l.id DESC LIMIT 1),
+        (SELECT o."totaldistance" FROM oil_changes o WHERE o."busid" = d."busId" ORDER BY o."changedate" DESC LIMIT 1),
+        b."initialMeter"
+      ) AS lastMeter
       FROM drivers d
       LEFT JOIN buses b ON d."busId" = b.id`;
     
@@ -482,6 +486,31 @@ app.get('/api/ledger', authMiddleware, checkCompanySubscription, async (req, res
     res.json(result.rows);
   } catch (err) {
     res.status(500).send('خطأ في جلب السجل');
+  }
+});
+
+// جلب فواصل تغيير الزيت (type='oil_marker') لباص معيّن - endpoint منفصل
+// مستقل عن السائق لأن الباص قد يتغيّر سائقه بمرور الوقت، والفاصل يبقى خاصية للباص نفسه
+app.get('/api/ledger/oil-markers', authMiddleware, checkCompanySubscription, async (req, res) => {
+  const { busId } = req.query;
+  const { company_id, role } = req.user;
+
+  if (!busId) return res.status(400).send('busId مطلوب');
+
+  try {
+    let query = `SELECT * FROM ledger WHERE "busId" = $1 AND type = 'oil_marker'`;
+    let params = [busId];
+
+    if (role !== 'super_admin') {
+      query += ' AND company_id = $2';
+      params.push(company_id);
+    }
+
+    const result = await db.query(query + ' ORDER BY id ASC', params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('خطأ في جلب فواصل تغيير الزيت');
   }
 });
 
