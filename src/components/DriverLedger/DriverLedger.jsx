@@ -83,15 +83,18 @@ const ledgerColumns = [
   // state للزيت
   const [oilCounterVal, setOilCounterVal] = useState(0);
   const [oilInterval, setOilInterval] = useState(2000);
-  const [oilWarning, setOilWarning] = useState(2500);
-// جلب آخر تاريخ لتغيير زيت الباص المرتبط بالسائق
-const fetchLastOilChangeDate = async (busId) => {
+  const [oilWarning, setOilWarning] = useState(3000);
+// جلب قراءة العداد الفعلية عند آخر تغيير زيت للباص (busId) - مصدر الحقيقة الوحيد: oil_changes
+// نرتب بـ id (تسلسل إدخال حقيقي) وليس بالتاريخ، لتفادي مشاكل ترتيب السجلات المتشابهة بالتاريخ
+// مستقل تماماً عن السائق الحالي - يبقى صحيحاً حتى لو تغيّر السائق المرتبط بالباص لاحقاً
+const fetchLastOilMeter = async (busId) => {
   if (!busId) return null;
   try {
     const oilChanges = await smartGet("oil_changes", `busId=${busId}`);
     if (oilChanges && oilChanges.length > 0) {
-      const sorted = oilChanges.sort((a, b) => new Date(b.changedate) - new Date(a.changedate));
-      return new Date(sorted[0].changedate);
+      const sorted = [...oilChanges].sort((a, b) => (b.id || 0) - (a.id || 0));
+      const latest = sorted[0];
+      return Number(latest.totaldistance || latest.currentMeter || 0);
     }
   } catch (err) {
     console.error("خطأ في جلب تغييرات الزيت:", err);
@@ -132,23 +135,14 @@ const fetchLastOilChangeDate = async (busId) => {
       setSelectedDriver(currentDriver);
 
       const ledgerData = await smartGet("ledger", `driverId=${driverId}`);
-      const sortedLedger = [...ledgerData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // ترتيب بـ id (تسلسل إدخال حقيقي) بدل date (نص بسيط، لا يميّز بين سجلين بنفس اليوم)
+      // هذا يحل مشكلة: عمليتان بنفس التاريخ يجب تظهر الأحدث إدخالاً أولاً
+      const sortedLedger = [...ledgerData].sort((a, b) => (a.id || 0) - (b.id || 0));
 
       let previousMeter = Number(currentDriver?.initialMeter || 0);
       let runningBalance = Number(currentDriver?.opening_balance || 0);
       const processedData = [];
-
-      // جلب آخر تاريخ تغيير زيت للباص
-      const lastOilDate = await fetchLastOilChangeDate(currentDriver.busId);
-      let totalDistanceSinceOil = 0;
-      let lastOilMeter = previousMeter;
-
-      if (lastOilDate) {
-        // نبحث عن قراءة العداد عند آخر تغيير زيت (أقرب سجل بعد أو في نفس التاريخ)
-        const oilChangeLedger = sortedLedger.find(entry => new Date(entry.date) >= lastOilDate);
-        if (oilChangeLedger) lastOilMeter = Number(oilChangeLedger.currentMeter);
-        previousMeter = lastOilMeter;
-      }
 
       for (const entry of sortedLedger) {
         const currentMeter = Number(entry.currentMeter || 0);
@@ -160,19 +154,12 @@ const fetchLastOilChangeDate = async (busId) => {
           ? 0 
           : Number(entry.rentAmount || entry.dailyRent || currentDriver?.dailyRent || 0);
 
+        // distance: مسافة هذا السجل عن السجل الذي قبله مباشرة بالتسلسل فقط
+        // لا علاقة له بتغيير الزيت إطلاقاً - يبقى ثابتاً تاريخياً بغض النظر عن أي تغيير زيت لاحق
         let distance = 0;
         if (entry.type !== 'debt' && entry.type !== 'payment') {
           distance = currentMeter > previousMeter ? currentMeter - previousMeter : 0;
           previousMeter = currentMeter;
-        }
-
-        // حساب المسافة المقطوعة منذ آخر تغيير زيت فقط
-        if (entry.type !== 'debt' && entry.type !== 'payment') {
-          if (lastOilDate && new Date(entry.date) >= lastOilDate) {
-            totalDistanceSinceOil += distance;
-          } else if (!lastOilDate) {
-            totalDistanceSinceOil += distance;
-          }
         }
 
         if (entry.type === 'debt') runningBalance += paidAmount;
@@ -189,6 +176,22 @@ const fetchLastOilChangeDate = async (busId) => {
           cumulativeBalance: runningBalance
         });
       }
+
+      // ===== المسافة منذ آخر تغيير زيت (oilCounterVal) =====
+      // معادلة طرح مباشرة ووحيدة، مستقلة تماماً عن الحلقة أعلاه:
+      // آخر قراءة عداد فعلية للسائق (previousMeter بعد نهاية الحلقة) - آخر قراءة زيت لباصه الحالي
+      // لا حلقات، لا مقارنة تواريخ - يلغي فخ التوقيت (TIMESTAMP مقابل DATE) نهائياً
+      const lastOilMeter = await fetchLastOilMeter(currentDriver.busId);
+      let totalDistanceSinceOil = 0;
+      if (lastOilMeter !== null) {
+        totalDistanceSinceOil = previousMeter > lastOilMeter ? previousMeter - lastOilMeter : 0;
+      } else {
+        // لا يوجد أي تغيير زيت مسجل بعد لهذا الباص - المسافة الكلية منذ بداية القراءة الأولية
+        totalDistanceSinceOil = previousMeter > Number(currentDriver?.initialMeter || 0)
+          ? previousMeter - Number(currentDriver?.initialMeter || 0)
+          : 0;
+      }
+      // ======================================================
 
       setLedger(processedData.reverse());
       setOilCounterVal(totalDistanceSinceOil); // تعيين المسافة منذ آخر تغيير زيت

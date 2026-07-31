@@ -131,9 +131,10 @@ const fetchBusData = async () => {
         label: 'تغيير زيت',
         cost: Number(o.amount || o.paidAmount || 0),
         meter: actualMeter,
-        date: o.changedate || o.changedate || o.date
+        date: o.changedate || o.date
       };
-    }).sort((a, b) => a.meter - b.meter);
+    }).sort((a, b) => a.id - b.id); // ترتيب بـ id: تسلسل إدخال حقيقي وموثوق 100%
+                                      // (الترتيب بـ meter كان يخاطر بانقلاب كامل عند أي خطأ إدخال واحد)
 
     // 4. حساب المسافة المقطوعة (diff)
     processedOil = processedOil.map((item, index, array) => {
@@ -152,8 +153,13 @@ const fetchBusData = async () => {
       diff: 0
     }));
 
-    // 6. الترتيب التنازلي حسب التاريخ
-    const sortByDateDesc = (data) => [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // 6. الترتيب التنازلي حسب التاريخ، وبـ id كمعيار ثانوي لفك التعادل بين سجلات بنفس اليوم
+    // (بدون هذا، ترتيب سجلات بنفس التاريخ يعتمد على ترتيب استلامها من السيرفر - غير مضمون)
+    const sortByDateDesc = (data) => [...data].sort((a, b) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return (b.id || 0) - (a.id || 0);
+    });
 
     const finalOilHistory = sortByDateDesc(processedOil);
     const finalRepairHistory = sortByDateDesc(processedRepair);
@@ -218,69 +224,9 @@ const handleSave = async (e) => {
         };
 
     // استخدام smartSave: إذا وجد id سيقوم بعمل PUT، وإلا سيعمل POST
-    const savedEntry = await smartSave(endpoint, dataToSave, isEditing ? currentEntryId : null);
-
-    // ===== فاصل تغيير الزيت (oil_marker) في جدول ledger =====
-    // يُستخدم في DriverLedger.jsx كنقطة انطلاق موثوقة لحساب المسافة (distance)
-    // والمسافة منذ آخر تغيير زيت (oilCounterVal)، بمعزل تام عن جدول oil_changes
-    if (isOil) {
-      const oilRecordId = savedEntry?.id || currentEntryId;
-      const markerNote = `oil_ref:${oilRecordId}`;
-
-      if (isEditing) {
-        // تعديل سجل زيت موجود: نبحث عن الفاصل المرتبط ونحدّثه بدل إنشاء نسخة جديدة
-        try {
-          const existingMarkers = await smartGet("ledger", `busId=${busId}`);
-          const relatedMarker = (existingMarkers || []).find(
-            (l) => l.type === "oil_marker" && l.note === markerNote
-          );
-          if (relatedMarker) {
-            await smartSave(
-              "ledger",
-              {
-                busId: parseInt(busId),
-                driverId: null,
-                date: newEntry.date,
-                currentMeter: finalMeter,
-                paidAmount: 0,
-                type: "oil_marker",
-                note: markerNote,
-              },
-              relatedMarker.id
-            );
-          } else {
-            // لم يوجد فاصل مرتبط (مثلاً سجل قديم من قبل هذا التحديث) - ننشئ واحداً جديداً
-            await smartSave("ledger", {
-              busId: parseInt(busId),
-              driverId: null,
-              date: newEntry.date,
-              currentMeter: finalMeter,
-              paidAmount: 0,
-              type: "oil_marker",
-              note: markerNote,
-            });
-          }
-        } catch (markerErr) {
-          console.error("⚠️ فشل تحديث فاصل تغيير الزيت:", markerErr);
-        }
-      } else {
-        // إنشاء جديد: ننشئ فاصل جديد مرتبط بسجل الزيت الجديد
-        try {
-          await smartSave("ledger", {
-            busId: parseInt(busId),
-            driverId: null,
-            date: newEntry.date,
-            currentMeter: finalMeter,
-            paidAmount: 0,
-            type: "oil_marker",
-            note: markerNote,
-          });
-        } catch (markerErr) {
-          console.error("⚠️ فشل إنشاء فاصل تغيير الزيت:", markerErr);
-        }
-      }
-    }
-    // =========================================================
+    // oil_changes هو مصدر الحقيقة الوحيد لتغييرات الزيت - مرتبط بـ busId مباشرة
+    // (يبقى صحيحاً تلقائياً حتى لو تغيّر السائق المرتبط بالباص لاحقاً)
+    await smartSave(endpoint, dataToSave, isEditing ? currentEntryId : null);
 
     await fetchBusData();
     handleCloseModal(); // دالة لتنظيف الحالة وإغلاق المودال
